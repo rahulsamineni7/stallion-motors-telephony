@@ -31,6 +31,7 @@ class StartCallRequest(BaseModel):
 class TurnRequest(BaseModel):
     call_id: str
     utterance: str
+    is_interruption: bool = False
 
 class StepHuntRequest(BaseModel):
     call_id: str
@@ -161,8 +162,8 @@ async def simulate_auto_flow(req: TurnRequest):
         agent = StallionDealershipAgent(call_id=req.call_id)
         _SIM_AGENTS[req.call_id] = agent
 
-    # 1. Process Concern
-    routing_turn = await agent.process_user_turn(req.utterance)
+    # 1. Process Concern with Mini Memory & Interruption tracking
+    routing_turn = await agent.process_user_turn(req.utterance, is_interruption=req.is_interruption)
 
     # 2. Automatically execute hunt sequence
     sequence_events = []
@@ -179,8 +180,17 @@ async def simulate_auto_flow(req: TurnRequest):
         "caller_utterance": req.utterance,
         "routing_turn": routing_turn,
         "telephony_hunt_steps": sequence_events,
-        "final_status": session.status if session else "UNKNOWN"
+        "final_status": session.status if session else "UNKNOWN",
+        "memory": agent.memory.model_dump()
     })
+
+@sim_router.get("/simulate/memory")
+async def get_call_memory(call_id: str = Query(..., description="Call ID to retrieve memory for")):
+    from agent.dealership_agent import CALL_MEMORIES
+    mem = CALL_MEMORIES.get(call_id)
+    if mem:
+        return JSONResponse(mem.model_dump())
+    return JSONResponse({"call_id": call_id, "status": "no_memory_found"})
 
 @sim_router.get("/audio/tts")
 async def get_tts_audio(
@@ -188,16 +198,44 @@ async def get_tts_audio(
     provider: str = Query("fish", description="TTS provider: 'fish' or 'sarvam'")
 ):
     """
-    Returns audio bytes for testing spoken prompts.
-    Prioritizes Fish Audio (MP3) or Sarvam AI (WAV).
+    Returns Nigerian English Fish Audio MP3 bytes with instant pre-cached lookup.
     """
-    if provider == "fish" or fish_audio_config.enabled:
-        audio_bytes = await fish_tts.synthesize(text, format="mp3")
-        if audio_bytes and len(audio_bytes) > 200:
-            return Response(content=audio_bytes, media_type="audio/mpeg")
+    t = text.strip()
+    audio_dirs = [
+        os.path.join(os.path.dirname(__file__), "..", "public", "audio"),
+        os.path.join(os.path.dirname(__file__), "..", "static", "audio")
+    ]
 
-    # Fallback to Sarvam TTS
-    audio_bytes = await sarvam_tts.synthesize(text)
+    # 1. Instant disk cache lookup for Nigerian Buddy voice assets
+    filename_map = {
+        "greeting.mp3": "Hello! Thank you for calling Stallion Motors",
+        "difficulty_retry.mp3": "Sorry, some difficulty in the number I dialed",
+        "all_busy.mp3": "representatives are currently busy",
+        "interrupted_ack.mp3": "I hear you",
+        "sales_intro.mp3": "Vehicle Sales specialist",
+        "service_intro.mp3": "Service, Maintenance and Bodyshop",
+        "parts_intro.mp3": "Parts specialist",
+        "finance_intro.mp3": "Finance desk",
+        "support_intro.mp3": "Customer Care Manager",
+        "sales_handover.mp3": "Tunde Bakare",
+        "general_handover.mp3": "connecting you to our specialist"
+    }
+
+    for fname, match_sub in filename_map.items():
+        if match_sub.lower() in t.lower():
+            for adir in audio_dirs:
+                fpath = os.path.join(adir, fname)
+                if os.path.exists(fpath):
+                    with open(fpath, "rb") as f:
+                        return Response(content=f.read(), media_type="audio/mpeg")
+
+    # 2. Dynamic Fish Audio synthesis with Nigerian Buddy voice (88cac40533e34672ae5d66e73759c487)
+    audio_bytes = await fish_tts.synthesize(t, format="mp3")
+    if audio_bytes and len(audio_bytes) > 200:
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+
+    # Fallback to Sarvam if Fish is unreachable
+    audio_bytes = await sarvam_tts.synthesize(t)
     return Response(content=audio_bytes, media_type="audio/wav")
 
 @sim_router.get("/audio/fish-tts")

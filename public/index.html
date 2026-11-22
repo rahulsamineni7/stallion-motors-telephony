@@ -20,7 +20,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
-      padding: 36px 20px 48px 20px;
+      padding: 30px 20px 40px 20px;
       user-select: none;
     }
 
@@ -29,21 +29,33 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       text-align: center;
       z-index: 10;
     }
     .brand-title {
       font-size: 15px;
       font-weight: 800;
-      letter-spacing: 3.5px;
+      letter-spacing: 4px;
       text-transform: uppercase;
       color: #0f172a;
     }
     .brand-subtitle {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
       color: #64748b;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-nigeria {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
       letter-spacing: 0.5px;
     }
     .call-timer {
@@ -62,7 +74,7 @@
       position: relative;
       width: 100%;
       max-width: 520px;
-      height: 400px;
+      height: 380px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -70,49 +82,61 @@
       z-index: 5;
     }
     canvas#sphereCanvas {
-      width: 380px;
-      height: 380px;
+      width: 360px;
+      height: 360px;
       display: block;
     }
 
-    /* Minimal Captions / Speech Subtitles */
+    /* Captions & Mini Memory Badge */
     .caption-container {
       position: absolute;
-      bottom: 0;
+      bottom: -10px;
       width: 100%;
-      max-width: 580px;
+      max-width: 600px;
       text-align: center;
       padding: 0 16px;
-      min-height: 56px;
+      min-height: 60px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 10;
     }
+    .caption-status {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      color: #64748b;
+    }
     .caption-text {
       font-size: 16px;
       font-weight: 600;
       line-height: 1.45;
-      color: #1e293b;
-      transition: all 0.25s ease;
-      max-width: 500px;
+      color: #0f172a;
+      transition: all 0.2s ease;
+      max-width: 520px;
     }
-    .caption-status {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-      color: #64748b;
+    .memory-badge {
+      margin-top: 6px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #0284c7;
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      padding: 3px 10px;
+      border-radius: 12px;
+      display: none;
     }
+    .memory-badge.visible { display: inline-block; }
 
     /* Single Call Button */
     .control-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       z-index: 10;
     }
     .btn-call {
@@ -128,7 +152,6 @@
       cursor: pointer;
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
       transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-      position: relative;
     }
     .btn-call:hover {
       transform: scale(1.08);
@@ -141,39 +164,36 @@
       background: #ef4444;
       box-shadow: 0 12px 30px rgba(239, 68, 68, 0.35);
     }
-    .btn-call.in-call:hover {
-      box-shadow: 0 16px 36px rgba(239, 68, 68, 0.45);
-    }
     .btn-call svg {
       width: 28px;
       height: 28px;
       fill: currentColor;
-      transition: transform 0.2s;
     }
-
     .call-label {
       font-size: 13px;
       font-weight: 600;
       color: #64748b;
-      letter-spacing: 0.3px;
     }
 
-    /* Soft Glow Radial behind Canvas */
+    /* Soft Glow Radial */
     .ambient-glow {
       position: absolute;
       width: 320px;
       height: 320px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, rgba(255,255,255,0) 70%);
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.08) 0%, rgba(255,255,255,0) 70%);
       pointer-events: none;
-      transition: background 0.5s ease;
+      transition: background 0.4s ease;
       z-index: 1;
     }
     .ambient-glow.speaking {
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, rgba(245, 158, 11, 0.1) 50%, rgba(255,255,255,0) 75%);
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(245, 158, 11, 0.08) 50%, rgba(255,255,255,0) 75%);
     }
     .ambient-glow.listening {
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, rgba(255,255,255,0) 70%);
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, rgba(255,255,255,0) 70%);
+    }
+    .ambient-glow.interrupted {
+      background: radial-gradient(circle, rgba(239, 68, 68, 0.22) 0%, rgba(255,255,255,0) 70%);
     }
   </style>
 </head>
@@ -182,18 +202,22 @@
   <!-- Minimal Brand Header -->
   <header>
     <div class="brand-title">Stallion Motors</div>
-    <div class="brand-subtitle">Zola • AI Telephony Concierge</div>
+    <div class="brand-subtitle">
+      <span>Zola Concierge</span>
+      <span class="badge-nigeria">🇳🇬 Nigerian Voice</span>
+    </div>
     <div class="call-timer" id="callTimer">00:00</div>
   </header>
 
   <!-- 3D Organic Sphere -->
   <div class="stage">
     <div class="ambient-glow" id="ambientGlow"></div>
-    <canvas id="sphereCanvas" width="760" height="760"></canvas>
+    <canvas id="sphereCanvas" width="720" height="720"></canvas>
     
     <div class="caption-container">
       <div class="caption-status" id="captionStatus">Ready</div>
       <div class="caption-text" id="captionText">Tap the button to start call</div>
+      <div class="memory-badge" id="memoryBadge">Memory: Initialized</div>
     </div>
   </div>
 
@@ -207,10 +231,11 @@
     <div class="call-label" id="callLabel">Start Call</div>
   </div>
 
+  <!-- Dedicated Audio Player for Fish Audio -->
   <audio id="audioStream" preload="auto"></audio>
 
 <script>
-  // ── 1. API HELPER (BULLETPROOF VERCEL & LOCAL ROUTING) ─────────────────────
+  // ── 1. BULLETPROOF API CALLS ─────────────────────────────────────────────
   async function apiPost(endpoint, body = {}) {
     const urls = [`/api${endpoint}`, `${endpoint}`];
     for (const url of urls) {
@@ -226,40 +251,70 @@
     return null;
   }
 
-  // ── 2. STATE ─────────────────────────────────────────────────────────────
+  // ── 2. STATE & MEMORY ────────────────────────────────────────────────────
   let inCall = false;
   let activeCallId = null;
   let timerInterval = null;
   let callSeconds = 0;
   let recognition = null;
-  let sphereState = 'idle'; // 'idle', 'speaking', 'listening'
+  let isAudioSpeaking = false;
+  let activeAudioAbort = null;
+  let sphereState = 'idle';
+  let currentTurnEpoch = 0;
+  let wasInterruptionFlag = false;
 
-  // ── 3. SPEECH RECOGNITION (HANDS-FREE LISTENING) ─────────────────────────
+  // ── 3. SPEECH RECOGNITION WITH INSTANT BARGE-IN (STOP ON INTERRUPT) ──────
   function initSpeech() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return null;
     const rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = false;
+    rec.continuous = true;
+    rec.interimResults = true;
     rec.lang = 'en-US';
-
-    rec.onstart = () => {
-      if (!inCall) return;
-      setSphereState('listening');
-      setStatus('Listening', '#10b981');
-      setCaption('Listening to your concern...');
-    };
 
     rec.onresult = (e) => {
       if (!inCall) return;
-      const text = e.results[0][0].transcript;
-      if (text && text.trim()) {
-        handleSpokenInput(text.trim());
+
+      let interim = '';
+      let finalSpeech = '';
+      for (let i = e.resultIndex; i < e.results.length; ++i) {
+        if (e.results[i].isFinal) {
+          finalSpeech += e.results[i][0].transcript;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+
+      const heard = (finalSpeech || interim).trim();
+
+      // BARGE-IN: If AI is speaking and caller starts talking, CUT OFF AUDIO IMMEDIATELY!
+      if (isAudioSpeaking && heard.length > 1) {
+        console.log("[BARGE-IN TRIGGERED] Caller spoke:", heard);
+        wasInterruptionFlag = true;
+        currentTurnEpoch++; // Cancels pending hunt group audio
+        stopAudioImmediately();
+        setSphereState('interrupted');
+        setStatus('Interrupted — Listening', '#ef4444');
+        setCaption(`"${heard}..."`);
+      }
+
+      if (finalSpeech && finalSpeech.trim().length > 1) {
+        const interrupted = wasInterruptionFlag;
+        wasInterruptionFlag = false;
+        currentTurnEpoch++;
+        handleUserSpeech(finalSpeech.trim(), interrupted, currentTurnEpoch);
       }
     };
 
     rec.onerror = (e) => {
-      if (inCall && e.error === 'no-speech') {
+      if (inCall && (e.error === 'no-speech' || e.error === 'network')) {
+        try { rec.start(); } catch(err) {}
+      }
+    };
+
+    rec.onend = () => {
+      // Keep listening hands-free continuously during the call
+      if (inCall) {
         try { rec.start(); } catch(err) {}
       }
     };
@@ -269,7 +324,20 @@
 
   recognition = initSpeech();
 
-  // ── 4. CALL TOGGLE (ONE CLICK START & END) ──────────────────────────────
+  function stopAudioImmediately() {
+    isAudioSpeaking = false;
+    const audio = document.getElementById('audioStream');
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch(e) {}
+    if (activeAudioAbort) {
+      activeAudioAbort();
+      activeAudioAbort = null;
+    }
+  }
+
+  // ── 4. CALL TOGGLE & LIFECYCLE ───────────────────────────────────────────
   async function toggleCall() {
     if (!inCall) {
       await startCall();
@@ -281,13 +349,14 @@
   async function startCall() {
     inCall = true;
     callSeconds = 0;
+    currentTurnEpoch = 1;
+    const myEpoch = currentTurnEpoch;
     updateUI(true);
 
     setStatus('Connecting', '#0ea5e9');
-    setCaption('Connecting to Stallion Motors Dealership...');
+    setCaption('Connecting to Stallion Motors (+234 1 888 0199)...');
     setSphereState('speaking');
 
-    // Start Call Timer
     timerInterval = setInterval(() => {
       callSeconds++;
       const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
@@ -295,162 +364,180 @@
       document.getElementById('callTimer').innerText = `${m}:${s}`;
     }, 1000);
 
-    // Backend Init
-    const data = await apiPost('/simulate/start-call', {
-      caller_phone: "+2348035551234",
-      caller_name: "Customer"
-    });
-
-    if (!data) {
-      // Offline fallback greeting
-      activeCallId = "call_" + Math.random().toString(36).substring(7);
-      const greeting = "Hello! Thank you for calling Stallion Motors Dealership. I am Zola, your virtual concierge. How may I direct your call or assist you with your vehicle today?";
-      await speakAloud(greeting);
-    } else {
-      activeCallId = data.call_id;
-      await speakAloud(data.agent_greeting);
-    }
-
-    // Automatically listen hands-free
-    if (inCall) listenHandsFree();
-  }
-
-  function listenHandsFree() {
-    if (!inCall) return;
-    setSphereState('listening');
-    setStatus('Listening', '#10b981');
-    setCaption('Speak your vehicle concern now...');
+    // Start hands-free continuous speech recognition
     if (recognition) {
       try { recognition.start(); } catch(e) {}
     }
+
+    // Backend Init
+    const data = await apiPost('/simulate/start-call', {
+      caller_phone: "+2348035551234",
+      caller_name: "Valued Customer"
+    });
+
+    let greetingText = "Hello! Thank you for calling Stallion Motors Dealership. I am Zola, your virtual concierge. How may I direct your call or assist you with your vehicle today?";
+    if (data && data.call_id) {
+      activeCallId = data.call_id;
+      if (data.agent_greeting) greetingText = data.agent_greeting;
+    } else {
+      activeCallId = "call_" + Math.random().toString(36).substring(7);
+    }
+
+    // Play greeting with Nigerian Fish Audio (interruptible)
+    await speakFishAudio(greetingText, myEpoch);
+
+    if (inCall && !isAudioSpeaking && myEpoch === currentTurnEpoch) {
+      setSphereState('listening');
+      setStatus('Listening', '#10b981');
+      setCaption('Speak your concern naturally (interrupt anytime)...');
+    }
   }
 
-  async function handleSpokenInput(utterance) {
-    if (!inCall) return;
+  async function handleUserSpeech(utterance, wasInterruption, myEpoch) {
+    if (!inCall || myEpoch !== currentTurnEpoch) return;
     setCaption(`"${utterance}"`);
-    setStatus('Thinking', '#f59e0b');
+    setStatus(wasInterruption ? 'Adjusting Concern' : 'Processing', '#f59e0b');
     setSphereState('idle');
 
     const data = await apiPost('/simulate/auto-flow', {
       call_id: activeCallId,
-      utterance: utterance
+      utterance: utterance,
+      is_interruption: wasInterruption
     });
 
+    if (myEpoch !== currentTurnEpoch || !inCall) return;
+
     if (data) {
-      await executeHuntFlow(data);
+      // Update Mini Memory Badge
+      if (data.memory) {
+        updateMemoryBadge(data.memory);
+      }
+      await executeTelephonyHunt(data, myEpoch);
     } else {
-      await speakAloud("Certainly! Let me forward you to our automotive specialist right away.");
-      await speakAloud("Sorry, some difficulty in the number I dialed, let me forward to another...");
-      await speakAloud("Thank you for holding! I have our sales manager on the line for you now. Handing you over right away.");
+      await speakFishAudio("Understood! Let me forward you to our dealership specialist right away.", myEpoch);
+    }
+
+    if (inCall && !isAudioSpeaking && myEpoch === currentTurnEpoch) {
+      setSphereState('listening');
+      setStatus('Listening', '#10b981');
+      setCaption('Speak your concern naturally (interrupt anytime)...');
     }
   }
 
-  async function executeHuntFlow(data) {
-    if (!inCall) return;
+  function updateMemoryBadge(mem) {
+    const b = document.getElementById('memoryBadge');
+    let text = `Memory: Turn ${mem.turn_count}`;
+    if (mem.vehicle_interest) text += ` • 🚗 ${mem.vehicle_interest}`;
+    if (mem.department) text += ` • ${mem.department.toUpperCase()}`;
+    if (mem.interrupted) text += ` • [Interrupted ${mem.interruption_count || 1}x]`;
+    b.innerText = text;
+    b.className = "memory-badge visible";
+  }
 
-    // 1. Reassurance
+  // ── 5. TELEPHONY HUNT GROUP FLOW WITH NIGERIAN FISH AUDIO ─────────────────
+  async function executeTelephonyHunt(data, myEpoch) {
+    if (!inCall || myEpoch !== currentTurnEpoch) return;
+
+    // 1. Spoken Reassurance (Context-aware acknowledging memory & interruption)
     const rTurn = data.routing_turn;
-    await speakAloud(rTurn.message_to_speak);
+    const ok1 = await speakFishAudio(rTurn.message_to_speak, myEpoch);
+    if (!ok1 || myEpoch !== currentTurnEpoch || !inCall) return;
 
-    // 2. Telephony hunt retries
+    // 2. Sequential Retries
     const steps = data.telephony_hunt_steps || [];
     for (const step of steps) {
-      if (!inCall) break;
+      if (!inCall || myEpoch !== currentTurnEpoch) break;
+
+      // Realistic phone ringing pause between hunt attempts
+      await new Promise(r => setTimeout(r, 700));
+      if (!inCall || myEpoch !== currentTurnEpoch) break;
+
       if (step.status === "DIFFICULTY_FORWARDING") {
         setStatus('Line Difficulty', '#f59e0b');
-        // Plays: "Sorry, some difficulty in the number I dialed, let me forward to another..."
-        await speakAloud(step.message_to_speak);
+        // Authentic Nigerian Fish Audio: "Sorry, some difficulty in the number I dialed, let me forward to another..."
+        const ok = await speakFishAudio(step.message_to_speak, myEpoch);
+        if (!ok || myEpoch !== currentTurnEpoch || !inCall) break;
       } else if (step.status === "HANDOVER_COMPLETE") {
         setStatus('Connected', '#10b981');
-        // Plays handover confirmation
-        await speakAloud(step.message_to_speak);
-        setCaption(`Bridged to ${step.connected_to.name} (${step.connected_to.role})`);
+        // Handover confirmation
+        await speakFishAudio(step.message_to_speak, myEpoch);
+        if (step.connected_to) {
+          setCaption(`Handover Complete • Connected to ${step.connected_to.name} (${step.connected_to.role})`);
+        }
         break;
       } else if (step.status === "ALL_BUSY") {
-        setStatus('Lines Busy', '#ef4444');
-        // Plays all busy message
-        await speakAloud(step.message_to_speak);
-        setTimeout(() => { if (inCall) endCall(); }, 2000);
+        setStatus('All Lines Busy', '#ef4444');
+        // All busy fallback
+        await speakFishAudio(step.message_to_speak, myEpoch);
+        setTimeout(() => { if (inCall) endCall(); }, 3000);
         break;
       }
     }
   }
 
-  // ── 5. TTS ENGINE: FISH AUDIO + INSTANT BROWSER SPEECH FALLBACK ──────────
-  function speakAloud(text) {
+  // ── 6. PURE NIGERIAN FISH AUDIO TTS (NO BROWSER ROBOT VOICE) ─────────────
+  function speakFishAudio(text, epoch) {
     return new Promise((resolve) => {
-      if (!inCall) return resolve();
+      if (!inCall || (epoch !== undefined && epoch !== currentTurnEpoch)) {
+        return resolve(false);
+      }
+
+      isAudioSpeaking = true;
       setSphereState('speaking');
       setStatus('Zola Speaking', '#0ea5e9');
       setCaption(text);
 
       const audio = document.getElementById('audioStream');
       const encoded = encodeURIComponent(text);
-      audio.src = `/api/audio/tts?provider=fish&text=${encoded}`;
+      let done = false;
 
-      let resolved = false;
-      const done = () => {
-        if (!resolved) {
-          resolved = true;
-          setSphereState('idle');
-          resolve();
+      const finish = (interrupted = false) => {
+        if (!done) {
+          done = true;
+          isAudioSpeaking = false;
+          activeAudioAbort = null;
+          if (inCall && !interrupted && (epoch === undefined || epoch === currentTurnEpoch)) {
+            setSphereState('listening');
+            setStatus('Listening', '#10b981');
+          }
+          resolve(!interrupted);
         }
       };
 
-      // Fallback timer: if Fish Audio takes > 3.0s or fails, speak with SpeechSynthesis
-      const fallbackTimer = setTimeout(() => {
-        if (!resolved && window.speechSynthesis) {
-          console.log("Using browser speech fallback...");
-          const ut = new SpeechSynthesisUtterance(text);
-          ut.rate = 1.05;
-          ut.onend = done;
-          ut.onerror = done;
-          window.speechSynthesis.speak(ut);
-        }
-      }, 3000);
+      activeAudioAbort = () => finish(true);
 
-      audio.onended = () => {
-        clearTimeout(fallbackTimer);
-        done();
-      };
+      audio.onended = () => finish(false);
       audio.onerror = () => {
-        clearTimeout(fallbackTimer);
-        if (!resolved && window.speechSynthesis) {
-          const ut = new SpeechSynthesisUtterance(text);
-          ut.onend = done;
-          ut.onerror = done;
-          window.speechSynthesis.speak(ut);
+        // Fallback between /audio/tts and /api/audio/tts
+        if (!audio.src.includes('/api/audio/tts')) {
+          audio.src = `/api/audio/tts?provider=fish&text=${encoded}`;
+          audio.play().catch(e => {
+            console.warn("Fallback play caught:", e);
+            finish(false);
+          });
         } else {
-          done();
+          console.warn("Fish Audio fetch failed, resolving gracefully");
+          finish(false);
         }
       };
 
-      audio.play().catch(() => {
-        clearTimeout(fallbackTimer);
-        if (!resolved && window.speechSynthesis) {
-          const ut = new SpeechSynthesisUtterance(text);
-          ut.onend = done;
-          ut.onerror = done;
-          window.speechSynthesis.speak(ut);
-        } else {
-          done();
-        }
+      audio.src = `/audio/tts?provider=fish&text=${encoded}`;
+      audio.play().catch(e => {
+        console.log("Audio play caught:", e);
       });
     });
   }
 
   function endCall() {
     inCall = false;
+    currentTurnEpoch++;
     clearInterval(timerInterval);
+    stopAudioImmediately();
     updateUI(false);
     setSphereState('idle');
     setStatus('Call Ended', '#64748b');
     setCaption('Tap the button to start a new call');
 
-    const audio = document.getElementById('audioStream');
-    audio.pause();
-    audio.currentTime = 0;
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (recognition) {
       try { recognition.stop(); } catch(e) {}
     }
@@ -472,6 +559,7 @@
       label.innerText = "Start Call";
       timer.className = "call-timer";
       icon.innerHTML = `<path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.01l-2.23 2.1z"/>`;
+      document.getElementById('memoryBadge').className = "memory-badge";
     }
   }
 
@@ -487,18 +575,17 @@
 
   function setSphereState(st) {
     sphereState = st;
-    const glow = document.getElementById('ambientGlow');
-    glow.className = `ambient-glow ${st}`;
+    document.getElementById('ambientGlow').className = `ambient-glow ${st}`;
   }
 
-  // ── 6. 3D ORGANIC FLUID SPHERE (HTML5 CANVAS 60FPS) ───────────────────────
+  // ── 7. 3D ORGANIC FLUID SPHERE (HTML5 CANVAS 60FPS) ───────────────────────
   const canvas = document.getElementById('sphereCanvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width;
   const H = canvas.height;
   const CX = W / 2;
   const CY = H / 2;
-  const BASE_R = 150;
+  const BASE_R = 145;
 
   let time = 0;
   const RINGS = 34;
@@ -518,50 +605,45 @@
     } else if (sphereState === 'listening') {
       speed = 0.035;
       waveAmp = 16;
+    } else if (sphereState === 'interrupted') {
+      speed = 0.08;
+      waveAmp = 34;
     }
 
     time += speed;
 
-    // Draw 3D wireframe point rings
     for (let r = 0; r < RINGS; r++) {
-      const v = (r / (RINGS - 1)) * Math.PI; // 0 to PI (latitude)
+      const v = (r / (RINGS - 1)) * Math.PI;
       const ringPoints = [];
 
       for (let p = 0; p < PTS_PER_RING; p++) {
-        const u = (p / PTS_PER_RING) * Math.PI * 2; // 0 to 2PI (longitude)
-
-        // 3D Organic Wave Perturbation
+        const u = (p / PTS_PER_RING) * Math.PI * 2;
         const wave1 = Math.sin(u * 3 + time * 2) * Math.cos(v * 4 + time);
         const wave2 = Math.sin(u * 5 - time) * Math.sin(v * 3 + time * 1.5);
         const curR = BASE_R + (wave1 + wave2) * waveAmp;
 
-        // Base 3D Sphere coordinates
         let x = curR * Math.sin(v) * Math.cos(u);
         let y = curR * Math.cos(v);
         let z = curR * Math.sin(v) * Math.sin(u);
 
-        // Rotation around X axis
         const cosX = Math.cos(rotX);
         const sinX = Math.sin(rotX);
         const y1 = y * cosX - z * sinX;
         const z1 = y * sinX + z * cosX;
 
-        // Rotation around Y axis
         const cosY = Math.cos(rotY);
         const sinY = Math.sin(rotY);
         const x2 = x * cosY + z1 * sinY;
         const z2 = -x * sinY + z1 * cosY;
 
-        // Perspective Projection
         const fov = 420;
         const scale = fov / (fov + z2 + 100);
         const px = CX + x2 * scale;
         const py = CY + y1 * scale;
 
-        ringPoints.push({ px, py, z: z2, scale });
+        ringPoints.push({ px, py, z: z2 });
       }
 
-      // Connect ring points with glowing dynamic strokes
       ctx.beginPath();
       for (let i = 0; i <= PTS_PER_RING; i++) {
         const pt = ringPoints[i % PTS_PER_RING];
@@ -569,19 +651,18 @@
         else ctx.lineTo(pt.px, pt.py);
       }
 
-      // Dynamic color palette based on state
       const depthAlpha = Math.max(0.08, Math.min(0.65, (ringPoints[0].z + BASE_R) / (BASE_R * 2)));
 
       if (sphereState === 'speaking') {
-        // Vibrant Sapphire Blue & Gold
         ctx.strokeStyle = `rgba(14, 165, 233, ${depthAlpha * 0.9})`;
         ctx.lineWidth = 1.4;
       } else if (sphereState === 'listening') {
-        // Emerald Glow
         ctx.strokeStyle = `rgba(16, 185, 129, ${depthAlpha * 0.9})`;
         ctx.lineWidth = 1.4;
+      } else if (sphereState === 'interrupted') {
+        ctx.strokeStyle = `rgba(239, 68, 68, ${depthAlpha * 0.95})`;
+        ctx.lineWidth = 1.6;
       } else {
-        // Minimal Charcoal / Slate
         ctx.strokeStyle = `rgba(15, 23, 42, ${depthAlpha * 0.45})`;
         ctx.lineWidth = 1.0;
       }

@@ -1,13 +1,14 @@
 """
 Stallion Motors Dealership Conversational Agent.
 Orchestrates prompt instructions, intent classification, function calling,
-and bridges directly to the sequential telephony hunt-group engine.
+and per-call mini memory tracking for interruptions and stateful context.
 """
 
 import os
 import json
 import logging
 from typing import Dict, Any, List, Optional, Tuple
+from pydantic import BaseModel, Field
 
 from config import llm_config, dealership_config
 from telephony.hunt_group_manager import hunt_group_manager, MSG_DIFFICULTY_RETRY, MSG_ALL_BUSY
@@ -23,48 +24,30 @@ try:
         SYSTEM_PROMPT = f.read()
 except Exception:
     SYSTEM_PROMPT = (
-        "You are Zola, senior virtual AI concierge for Stallion Motors Dealership. "
+        "You are Zola, senior virtual AI concierge for Stallion Motors Dealership in Nigeria. "
         "Ask the caller their concern and route to sales, service, parts, finance, or support. "
-        "When an extension has difficulty, speak: 'Sorry, some difficulty in the number I dialed, let me forward to another...'. "
-        "When all numbers are busy, speak: 'I'm sorry, all our representatives are currently busy. Please call back in a while.'"
+        "Keep responses concise and automotive-savvy. Remember the customer vehicle and past context."
     )
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "route_call_to_department",
-            "description": "Routes the incoming call to the appropriate dealership department hunt group based on caller's concern.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "department": {
-                        "type": "string",
-                        "enum": ["sales", "service", "parts", "finance", "support"],
-                        "description": "Target department matching the caller's concern."
-                    },
-                    "concern": {
-                        "type": "string",
-                        "description": "Brief summary of what the caller needs (e.g., 'Inquire about Hyundai Santa Fe', 'Routine service appointment', 'Brake pad replacement')."
-                    },
-                    "customer_name": {
-                        "type": "string",
-                        "description": "Name of the caller if mentioned, otherwise 'Valued Customer'."
-                    },
-                    "vehicle_details": {
-                        "type": "string",
-                        "description": "Vehicle brand, model, or year if mentioned by caller."
-                    }
-                },
-                "required": ["department", "concern"]
-            }
-        }
-    }
-]
+class CallMemory(BaseModel):
+    call_id: str
+    caller_phone: str = "+2348000000000"
+    caller_name: str = "Valued Customer"
+    vehicle_interest: Optional[str] = None
+    previous_vehicle: Optional[str] = None
+    department: Optional[str] = None
+    concern_summary: Optional[str] = None
+    turn_count: int = 0
+    interrupted: bool = False
+    interruption_count: int = 0
+    notes: List[str] = Field(default_factory=list)
+
+# Global Memory Store per Call
+CALL_MEMORIES: Dict[str, CallMemory] = {}
 
 class StallionDealershipAgent:
     """
-    Manages conversational dialog and telephony routing for Stallion Motors.
+    Manages conversational dialog, per-call mini-memory, and telephony routing.
     """
 
     def __init__(self, call_id: str, caller_phone: str = "+2348000000000"):
@@ -73,6 +56,14 @@ class StallionDealershipAgent:
         self.history: List[Dict[str, str]] = []
         self.detected_department: Optional[str] = None
         self.client = None
+
+        # Mini Memory per call
+        if call_id in CALL_MEMORIES:
+            self.memory = CALL_MEMORIES[call_id]
+        else:
+            self.memory = CallMemory(call_id=call_id, caller_phone=caller_phone)
+            CALL_MEMORIES[call_id] = self.memory
+
         self._init_llm_client()
 
     def _init_llm_client(self):
@@ -105,7 +96,18 @@ class StallionDealershipAgent:
             "I am Zola, your virtual concierge. How may I direct your call or assist you with your vehicle today?"
         )
         self.history.append({"role": "assistant", "content": greeting})
+        self.memory.turn_count = 1
         return greeting
+
+    def _extract_vehicle_mention(self, text: str) -> Optional[str]:
+        t = text.lower()
+        brands = ["nissan patrol", "nissan", "hyundai santa fe", "hyundai tucson", "hyundai",
+                  "honda accord", "honda cr-v", "honda", "changan cs35", "changan",
+                  "audi", "porsche", "ashok leyland", "truck", "suv"]
+        for b in brands:
+            if b in t:
+                return b.title()
+        return None
 
     def _classify_intent_heuristic(self, user_text: str) -> Tuple[str, str]:
         """High-accuracy fallback classification if LLM API is unavailable."""
@@ -119,69 +121,79 @@ class StallionDealershipAgent:
         elif any(w in text for w in ["service", "repair", "maintenance", "oil change", "mechanic", "breakdown", "bodyshop", "dent", "paint", "faulty", "engine"]):
             return "service", "Vehicle maintenance and service inquiry"
         else:
-            # Default to sales for vehicle purchase, prices, test drives, new cars
             return "sales", "New vehicle sales, pricing, and showroom inquiry"
 
-    async def process_user_turn(self, user_utterance: str) -> Dict[str, Any]:
+    async def process_user_turn(self, user_utterance: str, is_interruption: bool = False) -> Dict[str, Any]:
         """
         Processes a caller utterance:
-        1. Classifies caller's concern into appropriate department.
-        2. Initiates the hunt group routing sequence.
-        3. Returns the action payload and spoken message.
+        Updates per-call mini memory, notes interruptions, classifies concern, and initiates routing.
         """
+        self.memory.turn_count += 1
         self.history.append({"role": "user", "content": user_utterance})
 
-        # Check if LLM with function calling is available
-        if self.client and self.llm_provider in ("groq", "openai"):
-            try:
-                messages = [{"role": "system", "content": SYSTEM_PROMPT}] + self.history
-                model_name = "llama-3.3-70b-versatile" if self.llm_provider == "groq" else "gpt-4o-mini"
-                
-                resp = self.client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    tools=TOOLS,
-                    tool_choice="auto",
-                    temperature=0.2
-                )
-                msg = resp.choices[0].message
-                if msg.tool_calls:
-                    tc = msg.tool_calls[0]
-                    args = json.loads(tc.function.arguments)
-                    dept = args.get("department", "sales")
-                    concern = args.get("concern", user_utterance)
-                    cust_name = args.get("customer_name", "Valued Customer")
-                    return await self._initiate_routing(dept, concern, cust_name)
-                elif msg.content:
-                    self.history.append({"role": "assistant", "content": msg.content})
-                    return {
-                        "type": "dialog",
-                        "message_to_speak": msg.content,
-                        "status": "AWAITING_INPUT"
-                    }
-            except Exception as e:
-                logger.warning(f"LLM call failed: {e}. Falling back to heuristic classifier.")
+        if is_interruption:
+            self.memory.interrupted = True
+            self.memory.interruption_count += 1
+            self.memory.notes.append(f"Interrupted at turn {self.memory.turn_count}: '{user_utterance}'")
 
-        # Fallback Heuristic
+        # Update Vehicle Memory
+        new_vehicle = self._extract_vehicle_mention(user_utterance)
+        if new_vehicle:
+            if self.memory.vehicle_interest and self.memory.vehicle_interest.lower() != new_vehicle.lower():
+                self.memory.previous_vehicle = self.memory.vehicle_interest
+            self.memory.vehicle_interest = new_vehicle
+
+        # Classification
         dept, concern = self._classify_intent_heuristic(user_utterance)
-        return await self._initiate_routing(dept, concern, "Valued Customer")
+        self.memory.department = dept
+        self.memory.concern_summary = concern
 
-    async def _initiate_routing(self, department: str, concern: str, customer_name: str) -> Dict[str, Any]:
-        """Starts hunt group sequence for identified department."""
+        return await self._initiate_routing(dept, concern, self.memory.caller_name, is_interruption=is_interruption)
+
+    async def _initiate_routing(self, department: str, concern: str, customer_name: str, is_interruption: bool = False) -> Dict[str, Any]:
+        """Starts hunt group sequence for identified department using mini memory."""
         self.detected_department = department
-        session, intro_speech = hunt_group_manager.start_hunt(
+        session, base_speech = hunt_group_manager.start_hunt(
             call_id=self.call_id,
             department_id=department,
             caller_phone=self.caller_phone,
             caller_name=customer_name,
             concern=concern
         )
-        self.history.append({"role": "assistant", "content": intro_speech})
+
+        # Context-aware phrasing using mini memory
+        if is_interruption and self.memory.vehicle_interest:
+            spoken_message = (
+                f"Understood, I hear you! Switching your request to {self.memory.vehicle_interest} "
+                f"with our {session.department_name} specialist. Please stay on the line."
+            )
+        elif is_interruption:
+            spoken_message = (
+                f"Understood, I hear you! Let me connect you directly to our {session.department_name} specialist. "
+                f"Please stay on the line."
+            )
+        elif self.memory.previous_vehicle and self.memory.previous_vehicle != self.memory.vehicle_interest:
+            spoken_message = (
+                f"Understood! Switching your request to {self.memory.vehicle_interest}. "
+                f"Let me connect you directly to our {session.department_name} specialist."
+            )
+        elif self.memory.vehicle_interest:
+            spoken_message = (
+                f"Certainly! I would be glad to help you with your {self.memory.vehicle_interest} inquiry. "
+                f"Let me connect you directly to our {session.department_name} specialist. Please stay on the line."
+            )
+        else:
+            spoken_message = base_speech
+
+        self.history.append({"role": "assistant", "content": spoken_message})
+
         return {
             "type": "routing_initiated",
             "department": department,
             "department_name": session.department_name,
             "concern": concern,
-            "message_to_speak": intro_speech,
-            "status": "HUNTING"
+            "vehicle": self.memory.vehicle_interest,
+            "message_to_speak": spoken_message,
+            "status": "HUNTING",
+            "memory": self.memory.model_dump()
         }
