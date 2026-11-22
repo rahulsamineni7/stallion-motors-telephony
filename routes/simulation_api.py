@@ -114,6 +114,7 @@ async def simulate_start_call(req: StartCallRequest):
         "call_id": call_id,
         "status": "CALL_CONNECTED",
         "agent_greeting": greeting,
+        "audio_url": "/audio/greeting.mp3",
         "caller_phone": req.caller_phone,
         "caller_name": req.caller_name
     })
@@ -164,6 +165,13 @@ async def simulate_auto_flow(req: TurnRequest):
 
     # 1. Process Concern with Mini Memory & Interruption tracking
     routing_turn = await agent.process_user_turn(req.utterance, is_interruption=req.is_interruption)
+    dept = routing_turn.get("department", "sales")
+    if req.is_interruption:
+        routing_turn["audio_url"] = "/audio/interrupted_ack.mp3"
+    elif dept in ["sales", "service", "parts", "finance", "support"]:
+        routing_turn["audio_url"] = f"/audio/{dept}_intro.mp3"
+    else:
+        routing_turn["audio_url"] = "/audio/sales_intro.mp3"
 
     # 2. Automatically execute hunt sequence
     sequence_events = []
@@ -171,6 +179,13 @@ async def simulate_auto_flow(req: TurnRequest):
     if session:
         while session.status == "HUNTING":
             step = await hunt_group_manager.step_hunt(req.call_id, ring_delay_seconds=0.1)
+            st = step.get("status")
+            if st == "DIFFICULTY_FORWARDING":
+                step["audio_url"] = "/audio/difficulty_retry.mp3"
+            elif st == "HANDOVER_COMPLETE":
+                step["audio_url"] = "/audio/sales_handover.mp3" if dept == "sales" else "/audio/general_handover.mp3"
+            elif st == "ALL_BUSY":
+                step["audio_url"] = "/audio/all_busy.mp3"
             sequence_events.append(step)
             if step["status"] in ("HANDOVER_COMPLETE", "ALL_BUSY", "ERROR"):
                 break

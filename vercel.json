@@ -1,7 +1,20 @@
 {
+  "version": 2,
   "rewrites": [
     {
+      "source": "/audio/(.*)",
+      "destination": "/public/audio/$1"
+    },
+    {
+      "source": "/static/(.*)",
+      "destination": "/static/$1"
+    },
+    {
       "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/simulate/(.*)",
       "destination": "/api/index.py"
     },
     {

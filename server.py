@@ -32,11 +32,15 @@ app = FastAPI(
 # Vercel Path Normalization Middleware
 @app.middleware("http")
 async def vercel_path_rewrite_middleware(request: Request, call_next):
-    path = request.scope.get("path", "")
-    # If Vercel rewrites to /api/index.py/something or /api/index.py
-    if path.startswith("/api/index.py"):
-        new_path = path[len("/api/index.py"):]
-        request.scope["path"] = new_path if new_path else "/"
+    matched_path = request.headers.get("x-matched-path")
+    if matched_path and matched_path != "/api/index.py":
+        request.scope["path"] = matched_path
+    else:
+        path = request.scope.get("path", "")
+        # If Vercel rewrites to /api/index.py/something or /api/index.py
+        if path.startswith("/api/index.py"):
+            new_path = path[len("/api/index.py"):]
+            request.scope["path"] = new_path if new_path else "/"
     return await call_next(request)
 
 # CORS Middleware
@@ -62,6 +66,24 @@ if os.path.exists(STATIC_DIR):
 PUBLIC_DIR = os.path.join(os.path.dirname(__file__), "public")
 if os.path.exists(PUBLIC_DIR):
     app.mount("/public", StaticFiles(directory=PUBLIC_DIR), name="public")
+
+PUBLIC_AUDIO_DIR = os.path.join(PUBLIC_DIR, "audio")
+if os.path.exists(PUBLIC_AUDIO_DIR):
+    app.mount("/audio", StaticFiles(directory=PUBLIC_AUDIO_DIR), name="audio")
+
+@app.get("/audio/{filename}")
+@app.get("/public/audio/{filename}")
+@app.get("/static/audio/{filename}")
+async def serve_audio_file(filename: str):
+    """Direct audio file server ensuring MP3s are always delivered with 200/206 status."""
+    for folder in [
+        os.path.join(PUBLIC_DIR, "audio"),
+        os.path.join(STATIC_DIR, "audio"),
+    ]:
+        fpath = os.path.join(folder, filename)
+        if os.path.exists(fpath):
+            return FileResponse(fpath, media_type="audio/mpeg")
+    return FileResponse(os.path.join(PUBLIC_DIR, "audio", "greeting.mp3"), media_type="audio/mpeg")
 
 @app.get("/")
 @app.get("/api")
