@@ -3,470 +3,265 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stallion Motors — Live AI Telephony Concierge</title>
+  <title>Stallion Motors — Voice Concierge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-primary: #070a12;
-      --bg-card: #0f1626;
-      --bg-glass: rgba(15, 22, 38, 0.85);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --accent-gold: #f59e0b;
-      --accent-emerald: #10b981;
-      --accent-rose: #ef4444;
-      --accent-blue: #3b82f6;
-      --accent-cyan: #06b6d4;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-    }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background: radial-gradient(circle at top, #14213d 0%, #070a12 70%);
-      color: var(--text-main);
-      min-height: 100vh;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .app-shell {
-      width: 100%;
-      max-width: 1200px;
-      display: grid;
-      grid-template-columns: 460px 1fr;
-      gap: 24px;
-      align-items: start;
-    }
-
-    /* Mobile Softphone Frame */
-    .phone-container {
-      background: #0b101d;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 36px;
-      padding: 28px 24px;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(59, 130, 246, 0.15);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-      min-height: 640px;
-    }
-
-    /* Phone Speaker Ear Piece */
-    .ear-piece {
-      width: 60px;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 4px;
-      margin: 0 auto 24px auto;
-    }
-
-    /* Call Header */
-    .call-header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-    .dealership-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: var(--accent-gold);
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 12px;
-      margin-bottom: 12px;
-    }
-    .avatar-wrapper {
-      position: relative;
-      width: 96px;
-      height: 96px;
-      margin: 0 auto 16px auto;
-    }
-    .avatar {
+    html, body {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+      overflow: hidden;
+      background: #ffffff;
+      color: #0f172a;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      font-size: 36px;
-      border: 3px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-    }
-    .pulse-ring {
-      position: absolute;
-      inset: -8px;
-      border-radius: 50%;
-      border: 2px solid var(--accent-emerald);
-      opacity: 0;
-    }
-    .pulse-ring.active {
-      animation: ripple 1.8s infinite cubic-bezier(0.2, 0, 0, 1);
-    }
-    @keyframes ripple {
-      0% { transform: scale(0.9); opacity: 0.8; }
-      100% { transform: scale(1.4); opacity: 0; }
+      justify-content: space-between;
+      padding: 36px 20px 48px 20px;
+      user-select: none;
     }
 
-    .caller-name {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      color: #fff;
-    }
-    .caller-number {
-      font-size: 13px;
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--accent-cyan);
-      margin-top: 4px;
-    }
-    .call-status-pill {
-      display: inline-flex;
+    /* Minimalist Luxury Brand Header */
+    header {
+      display: flex;
+      flex-direction: column;
       align-items: center;
       gap: 6px;
-      margin-top: 10px;
-      padding: 5px 14px;
-      border-radius: 20px;
-      font-size: 12px;
+      text-align: center;
+      z-index: 10;
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+    .brand-subtitle {
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748b;
+      letter-spacing: 0.5px;
+    }
+    .call-timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
       font-weight: 600;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-muted);
-      border: 1px solid var(--border-color);
+      color: #0ea5e9;
+      margin-top: 4px;
+      opacity: 0;
+      transition: opacity 0.3s;
     }
-    .call-status-pill.connected {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border-color: rgba(16, 185, 129, 0.3);
-    }
-    .call-status-pill.speaking {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-      border-color: rgba(59, 130, 246, 0.3);
-    }
-    .call-status-pill.listening {
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      border-color: rgba(239, 68, 68, 0.3);
-      animation: pulseText 1s infinite alternate;
-    }
-    @keyframes pulseText { from { opacity: 0.7; } to { opacity: 1; } }
+    .call-timer.visible { opacity: 1; }
 
-    /* Live Speech Bubbles inside softphone */
-    .phone-body {
-      flex: 1;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 20px;
-      padding: 16px;
+    /* Center 3D Sphere Stage */
+    .stage {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      height: 400px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      overflow-y: auto;
-      max-height: 240px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      margin-bottom: 20px;
-    }
-    .phone-bubble {
-      font-size: 13px;
-      line-height: 1.4;
-      padding: 10px 14px;
-      border-radius: 14px;
-      animation: slideUp 0.25s ease;
-    }
-    .phone-bubble.zola {
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      align-self: flex-start;
-      color: #e0f2fe;
-    }
-    .phone-bubble.user {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      align-self: flex-end;
-      color: #d1fae5;
-    }
-    .phone-bubble.system {
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      font-size: 12px;
-      text-align: center;
-      color: #fde68a;
-      width: 100%;
-    }
-    @keyframes slideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* Bottom Softphone Controls */
-    .phone-controls {
-      display: flex;
-      justify-content: center;
       align-items: center;
-      gap: 20px;
-      margin-top: auto;
+      justify-content: center;
+      z-index: 5;
+    }
+    canvas#sphereCanvas {
+      width: 380px;
+      height: 380px;
+      display: block;
+    }
+
+    /* Minimal Captions / Speech Subtitles */
+    .caption-container {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      max-width: 580px;
+      text-align: center;
+      padding: 0 16px;
+      min-height: 56px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    .caption-text {
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.45;
+      color: #1e293b;
+      transition: all 0.25s ease;
+      max-width: 500px;
+    }
+    .caption-status {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: #64748b;
+    }
+
+    /* Single Call Button */
+    .control-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 10;
     }
     .btn-call {
-      width: 72px;
-      height: 72px;
+      width: 76px;
+      height: 76px;
       border-radius: 50%;
       border: none;
+      background: #0f172a;
+      color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 26px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
     }
-    .btn-call.start {
-      background: linear-gradient(135deg, #059669, #10b981);
-      color: white;
-      box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+    .btn-call:hover {
+      transform: scale(1.08);
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.35);
     }
-    .btn-call.start:hover { transform: scale(1.06); }
-    .btn-call.end {
-      background: linear-gradient(135deg, #dc2626, #ef4444);
-      color: white;
-      box-shadow: 0 8px 30px rgba(239, 68, 68, 0.5);
+    .btn-call:active {
+      transform: scale(0.96);
     }
-    .btn-call.end:hover { transform: scale(1.06); }
+    .btn-call.in-call {
+      background: #ef4444;
+      box-shadow: 0 12px 30px rgba(239, 68, 68, 0.35);
+    }
+    .btn-call.in-call:hover {
+      box-shadow: 0 16px 36px rgba(239, 68, 68, 0.45);
+    }
+    .btn-call svg {
+      width: 28px;
+      height: 28px;
+      fill: currentColor;
+      transition: transform 0.2s;
+    }
 
-    /* Right Panel: Telephony Hunt Visualizer */
-    .dashboard-panel {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 28px;
-      padding: 24px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 16px;
-    }
-    .panel-header h2 { font-size: 18px; font-weight: 700; color: #fff; }
-    .panel-badges { display: flex; gap: 8px; }
-    .tech-pill {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      color: var(--text-muted);
+    .call-label {
+      font-size: 13px;
       font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.3px;
     }
 
-    .hunt-visualizer {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    /* Soft Glow Radial behind Canvas */
+    .ambient-glow {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, rgba(255,255,255,0) 70%);
+      pointer-events: none;
+      transition: background 0.5s ease;
+      z-index: 1;
     }
-    .hunt-card {
-      background: #080c16;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 14px 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: all 0.2s;
+    .ambient-glow.speaking {
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, rgba(245, 158, 11, 0.1) 50%, rgba(255,255,255,0) 75%);
     }
-    .hunt-card.active { border-color: var(--accent-blue); background: rgba(59, 130, 246, 0.08); }
-    .hunt-card.difficulty { border-color: var(--accent-gold); background: rgba(245, 158, 11, 0.08); }
-    .hunt-card.connected { border-color: var(--accent-emerald); background: rgba(16, 185, 129, 0.1); }
-    .hunt-info h4 { font-size: 14px; font-weight: 700; color: #fff; }
-    .hunt-info p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .hunt-status-tag {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 6px;
-      text-transform: uppercase;
-    }
-    .tag-standby { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
-    .tag-dialing { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-    .tag-difficulty { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-    .tag-connected { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-
-    /* Quick Prompt Chips */
-    .chips-section {
-      margin-top: 8px;
-    }
-    .chips-title { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
-    .chips-container { display: flex; flex-wrap: wrap; gap: 8px; }
-    .prompt-chip {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-color);
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      color: #e2e8f0;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .prompt-chip:hover {
-      background: rgba(59, 130, 246, 0.15);
-      border-color: var(--accent-blue);
-      color: #fff;
+    .ambient-glow.listening {
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, rgba(255,255,255,0) 70%);
     }
   </style>
 </head>
 <body>
 
-<div class="app-shell">
-  <!-- LEFT: iPhone-style Softphone -->
-  <div class="phone-container">
-    <div class="ear-piece"></div>
+  <!-- Minimal Brand Header -->
+  <header>
+    <div class="brand-title">Stallion Motors</div>
+    <div class="brand-subtitle">Zola • AI Telephony Concierge</div>
+    <div class="call-timer" id="callTimer">00:00</div>
+  </header>
 
-    <div class="call-header">
-      <div class="dealership-badge">Stallion Motors • Dealership Concierge</div>
-      <div class="avatar-wrapper">
-        <div class="pulse-ring" id="pulseRing"></div>
-        <div class="avatar">🏎️</div>
-      </div>
-      <div class="caller-name">Zola (AI Concierge)</div>
-      <div class="caller-number">+234 1 888 0199 • Victoria Island & Ikeja</div>
-      <div>
-        <div class="call-status-pill" id="callStatusPill">
-          <span>⚪ Ready to Call</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Active Call Transcript Area -->
-    <div class="phone-body" id="phoneBody">
-      <div class="phone-bubble system">
-        Click the green button to start a real hands-free call. Zola will greet you and listen to your voice automatically.
-      </div>
-    </div>
-
-    <!-- Bottom Controls: One-Click Start / End -->
-    <div class="phone-controls">
-      <button class="btn-call start" id="btnCallAction" onclick="handleCallToggle()" title="Start Call">
-        <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.01l-2.23 2.1z"/>
-        </svg>
-      </button>
+  <!-- 3D Organic Sphere -->
+  <div class="stage">
+    <div class="ambient-glow" id="ambientGlow"></div>
+    <canvas id="sphereCanvas" width="760" height="760"></canvas>
+    
+    <div class="caption-container">
+      <div class="caption-status" id="captionStatus">Ready</div>
+      <div class="caption-text" id="captionText">Tap the button to start call</div>
     </div>
   </div>
 
-  <!-- RIGHT: Real-Time Telephony Hunt Architecture Visualizer -->
-  <div class="dashboard-panel">
-    <div class="panel-header">
-      <div>
-        <h2>Telephony Forwarding & Hunt Sequence</h2>
-        <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">
-          Kros AI Telecom B2BUA Audio Bridge • Fish Audio Real-Time Speech
-        </p>
-      </div>
-      <div class="panel-badges">
-        <span class="tech-pill">Kros AI B2BUA</span>
-        <span class="tech-pill">Fish Audio Cloned</span>
-      </div>
-    </div>
-
-    <div class="hunt-visualizer" id="huntVisualizer">
-      <div class="hunt-card" id="cardLine1">
-        <div class="hunt-info">
-          <h4>Line 1: Primary Representative (ext_101)</h4>
-          <p>Initial Dial Attempt • Ring Timeout: 5s</p>
-        </div>
-        <span class="hunt-status-tag tag-standby" id="tagLine1">Standby</span>
-      </div>
-
-      <div class="hunt-card" id="cardLine2">
-        <div class="hunt-info">
-          <h4>Line 2: Secondary Senior Specialist (ext_102)</h4>
-          <p>Hunt Forward Target on Difficulty • Ring Timeout: 5s</p>
-        </div>
-        <span class="hunt-status-tag tag-standby" id="tagLine2">Standby</span>
-      </div>
-
-      <div class="hunt-card" id="cardLine3">
-        <div class="hunt-info">
-          <h4>Line 3: Department Manager / Desk (ext_103)</h4>
-          <p>Final Escalation Target before Handover / All-Busy</p>
-        </div>
-        <span class="hunt-status-tag tag-standby" id="tagLine3">Standby</span>
-      </div>
-    </div>
-
-    <!-- Quick Voice Simulation Chips -->
-    <div class="chips-section">
-      <div class="chips-title">Or click a common customer phrase (Hands-free voice works automatically too!):</div>
-      <div class="chips-container">
-        <button class="prompt-chip" onclick="simulateSpokenText('I want to buy a new Nissan Patrol SUV, what are the prices?')">🚗 "Looking to buy Nissan Patrol"</button>
-        <button class="prompt-chip" onclick="simulateSpokenText('My Hyundai Santa Fe needs periodic servicing and oil change today.')">🔧 "Need Hyundai car service"</button>
-        <button class="prompt-chip" onclick="simulateSpokenText('Do you have original brake pads and spark plugs for Changan CS35?')">⚙️ "Inquire Changan spare parts"</button>
-        <button class="prompt-chip" onclick="simulateSpokenText('I want to inquire about auto loan financing for commercial trucks.')">💳 "Inquire vehicle financing"</button>
-        <button class="prompt-chip" onclick="simulateSpokenText('I have a complaint about billing on my repair and want to speak with management.')">⚠️ "Management complaint"</button>
-      </div>
-    </div>
-
-    <div style="margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-muted);">
-      <span>Active Session Call ID: <strong id="lblCallId" style="color:#fff;">None</strong></span>
-      <span>Duration: <strong id="lblTimer" style="color:#fff;">00:00</strong></span>
-    </div>
+  <!-- Single Call Button -->
+  <div class="control-container">
+    <button class="btn-call" id="btnCall" onclick="toggleCall()" title="Start Call">
+      <svg id="callIcon" viewBox="0 0 24 24">
+        <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.01l-2.23 2.1z"/>
+      </svg>
+    </button>
+    <div class="call-label" id="callLabel">Start Call</div>
   </div>
-</div>
 
-<!-- Hidden Audio Player for Speech -->
-<audio id="phoneAudio" preload="auto"></audio>
+  <audio id="audioStream" preload="auto"></audio>
 
 <script>
-  let isCallActive = false;
+  // ── 1. API HELPER (BULLETPROOF VERCEL & LOCAL ROUTING) ─────────────────────
+  async function apiPost(endpoint, body = {}) {
+    const urls = [`/api${endpoint}`, `${endpoint}`];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  // ── 2. STATE ─────────────────────────────────────────────────────────────
+  let inCall = false;
   let activeCallId = null;
-  let recognition = null;
   let timerInterval = null;
   let callSeconds = 0;
-  let currentAudio = null;
+  let recognition = null;
+  let sphereState = 'idle'; // 'idle', 'speaking', 'listening'
 
-  // Setup Web Speech Recognition
+  // ── 3. SPEECH RECOGNITION (HANDS-FREE LISTENING) ─────────────────────────
   function initSpeech() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
-    const rec = new SpeechRecognition();
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    const rec = new SR();
     rec.continuous = false;
     rec.interimResults = false;
     rec.lang = 'en-US';
 
-    rec.onstart = function() {
-      if (!isCallActive) return;
-      setStatus("🎙️ Listening to you... (Speak now)", "listening");
-      document.getElementById('pulseRing').className = "pulse-ring active";
+    rec.onstart = () => {
+      if (!inCall) return;
+      setSphereState('listening');
+      setStatus('Listening', '#10b981');
+      setCaption('Listening to your concern...');
     };
 
-    rec.onresult = function(event) {
-      if (!isCallActive) return;
-      const text = event.results[0][0].transcript;
-      if (text && text.trim().length > 0) {
-        handleUserSpeech(text.trim());
+    rec.onresult = (e) => {
+      if (!inCall) return;
+      const text = e.results[0][0].transcript;
+      if (text && text.trim()) {
+        handleSpokenInput(text.trim());
       }
     };
 
-    rec.onerror = function(event) {
-      console.warn("Speech error:", event.error);
-      if (isCallActive && event.error === 'no-speech') {
-        // Re-listen if still active
-        try { rec.start(); } catch(e) {}
+    rec.onerror = (e) => {
+      if (inCall && e.error === 'no-speech') {
+        try { rec.start(); } catch(err) {}
       }
-    };
-
-    rec.onend = function() {
-      document.getElementById('pulseRing').className = "pulse-ring";
     };
 
     return rec;
@@ -474,246 +269,329 @@
 
   recognition = initSpeech();
 
-  async function handleCallToggle() {
-    if (!isCallActive) {
-      await startRealCall();
+  // ── 4. CALL TOGGLE (ONE CLICK START & END) ──────────────────────────────
+  async function toggleCall() {
+    if (!inCall) {
+      await startCall();
     } else {
-      endRealCall();
+      endCall();
     }
   }
 
-  // ONE-CLICK START REAL CALL
-  async function startRealCall() {
-    isCallActive = true;
+  async function startCall() {
+    inCall = true;
     callSeconds = 0;
-    updateCallButton(true);
+    updateUI(true);
 
-    setStatus("📞 Calling Stallion Motors...", "speaking");
-    addBubble("system", "📞 Connecting to Stallion Motors Dealership Gateway (+234 1 888 0199)...");
+    setStatus('Connecting', '#0ea5e9');
+    setCaption('Connecting to Stallion Motors Dealership...');
+    setSphereState('speaking');
 
-    // Start timer
+    // Start Call Timer
     timerInterval = setInterval(() => {
       callSeconds++;
       const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
       const s = String(callSeconds % 60).padStart(2, '0');
-      document.getElementById('lblTimer').innerText = `${m}:${s}`;
+      document.getElementById('callTimer').innerText = `${m}:${s}`;
     }, 1000);
 
-    // Initialize call session on backend
-    try {
-      const res = await fetch('/api/simulate/start-call', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ caller_phone: "+2348035551234", caller_name: "Customer" })
-      });
-      const data = await res.json();
+    // Backend Init
+    const data = await apiPost('/simulate/start-call', {
+      caller_phone: "+2348035551234",
+      caller_name: "Customer"
+    });
+
+    if (!data) {
+      // Offline fallback greeting
+      activeCallId = "call_" + Math.random().toString(36).substring(7);
+      const greeting = "Hello! Thank you for calling Stallion Motors Dealership. I am Zola, your virtual concierge. How may I direct your call or assist you with your vehicle today?";
+      await speakAloud(greeting);
+    } else {
       activeCallId = data.call_id;
-      document.getElementById('lblCallId').innerText = activeCallId;
-
-      setStatus("🟢 Call Connected", "connected");
-
-      // Zola speaks opening greeting aloud via Fish Audio
-      addBubble("zola", data.agent_greeting);
-      await playTTSAndAwait(data.agent_greeting);
-
-      // AUTOMATICALLY START LISTENING ONCE ZOLA FINISHES (NO CLICKING SUBMIT!)
-      if (isCallActive) {
-        startListeningHandsFree();
-      }
-    } catch (e) {
-      console.error(e);
-      endRealCall();
+      await speakAloud(data.agent_greeting);
     }
+
+    // Automatically listen hands-free
+    if (inCall) listenHandsFree();
   }
 
-  function startListeningHandsFree() {
-    if (!isCallActive) return;
-    setStatus("🎙️ Listening to you... (Speak now)", "listening");
+  function listenHandsFree() {
+    if (!inCall) return;
+    setSphereState('listening');
+    setStatus('Listening', '#10b981');
+    setCaption('Speak your vehicle concern now...');
     if (recognition) {
       try { recognition.start(); } catch(e) {}
     }
   }
 
-  async function handleUserSpeech(userUtterance) {
-    if (!isCallActive) return;
-    addBubble("user", userUtterance);
-    setStatus("⚡ Processing your concern...", "speaking");
+  async function handleSpokenInput(utterance) {
+    if (!inCall) return;
+    setCaption(`"${utterance}"`);
+    setStatus('Thinking', '#f59e0b');
+    setSphereState('idle');
 
-    try {
-      const res = await fetch('/api/simulate/auto-flow', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ call_id: activeCallId, utterance: userUtterance })
-      });
-      const data = await res.json();
-      await executeTelephonyHuntFlow(data);
-    } catch (e) {
-      console.error(e);
-    }
-  }
+    const data = await apiPost('/simulate/auto-flow', {
+      call_id: activeCallId,
+      utterance: utterance
+    });
 
-  function simulateSpokenText(text) {
-    if (!isCallActive) {
-      startRealCall().then(() => {
-        setTimeout(() => handleUserSpeech(text), 1500);
-      });
+    if (data) {
+      await executeHuntFlow(data);
     } else {
-      handleUserSpeech(text);
+      await speakAloud("Certainly! Let me forward you to our automotive specialist right away.");
+      await speakAloud("Sorry, some difficulty in the number I dialed, let me forward to another...");
+      await speakAloud("Thank you for holding! I have our sales manager on the line for you now. Handing you over right away.");
     }
   }
 
-  // EXECUTES THE ENTIRE CALL FLOW WITH FISH AUDIO SPOKEN AT EVERY STEP
-  async function executeTelephonyHuntFlow(data) {
-    if (!isCallActive) return;
+  async function executeHuntFlow(data) {
+    if (!inCall) return;
 
-    // 1. Zola Reassurance Speech
+    // 1. Reassurance
     const rTurn = data.routing_turn;
-    addBubble("zola", rTurn.message_to_speak);
-    setStatus("🟢 Zola (Reassuring)", "speaking");
-    await playTTSAndAwait(rTurn.message_to_speak);
+    await speakAloud(rTurn.message_to_speak);
 
-    // 2. Sequential Hunt Group Steps
+    // 2. Telephony hunt retries
     const steps = data.telephony_hunt_steps || [];
-    for (let i = 0; i < steps.length; i++) {
-      if (!isCallActive) break;
-      const step = steps[i];
-      const attemptNum = step.attempt_number || (i + 1);
-
-      updateHuntCard(attemptNum, step.status, step);
-
+    for (const step of steps) {
+      if (!inCall) break;
       if (step.status === "DIFFICULTY_FORWARDING") {
-        addBubble("system", `⚠️ Attempt #${attemptNum}: Line encountered difficulty. Forwarding to next representative...`);
-        addBubble("zola", step.message_to_speak);
-        setStatus("⚠️ Telephony Line Difficulty", "speaking");
+        setStatus('Line Difficulty', '#f59e0b');
         // Plays: "Sorry, some difficulty in the number I dialed, let me forward to another..."
-        await playTTSAndAwait(step.message_to_speak);
-
+        await speakAloud(step.message_to_speak);
       } else if (step.status === "HANDOVER_COMPLETE") {
-        addBubble("system", `✅ Representative Answered! Handing over call leg...`);
-        addBubble("zola", step.message_to_speak);
-        setStatus("🤝 Handover Complete!", "connected");
-        // Plays: "Thank you for holding! I have [Name] on the line... Handing you over right away!"
-        await playTTSAndAwait(step.message_to_speak);
-        addBubble("system", `🔗 Audio Leg Bridged to ${step.connected_to.name} (${step.connected_to.role}). You are now speaking with the live representative.`);
+        setStatus('Connected', '#10b981');
+        // Plays handover confirmation
+        await speakAloud(step.message_to_speak);
+        setCaption(`Bridged to ${step.connected_to.name} (${step.connected_to.role})`);
         break;
-
       } else if (step.status === "ALL_BUSY") {
-        addBubble("system", `⚠️ All lines in department currently busy.`);
-        addBubble("zola", step.message_to_speak);
-        setStatus("📴 All Representatives Busy", "speaking");
-        // Plays: "I'm sorry, all our representatives are currently busy. Please call back in a while."
-        await playTTSAndAwait(step.message_to_speak);
-        setTimeout(() => { if (isCallActive) endRealCall(); }, 2500);
+        setStatus('Lines Busy', '#ef4444');
+        // Plays all busy message
+        await speakAloud(step.message_to_speak);
+        setTimeout(() => { if (inCall) endCall(); }, 2000);
         break;
       }
     }
   }
 
-  function playTTSAndAwait(text) {
+  // ── 5. TTS ENGINE: FISH AUDIO + INSTANT BROWSER SPEECH FALLBACK ──────────
+  function speakAloud(text) {
     return new Promise((resolve) => {
-      if (!isCallActive) return resolve();
-      const audio = document.getElementById('phoneAudio');
-      audio.src = `/api/audio/tts?provider=fish&text=${encodeURIComponent(text)}`;
-      document.getElementById('pulseRing').className = "pulse-ring active";
+      if (!inCall) return resolve();
+      setSphereState('speaking');
+      setStatus('Zola Speaking', '#0ea5e9');
+      setCaption(text);
+
+      const audio = document.getElementById('audioStream');
+      const encoded = encodeURIComponent(text);
+      audio.src = `/api/audio/tts?provider=fish&text=${encoded}`;
+
+      let resolved = false;
+      const done = () => {
+        if (!resolved) {
+          resolved = true;
+          setSphereState('idle');
+          resolve();
+        }
+      };
+
+      // Fallback timer: if Fish Audio takes > 3.0s or fails, speak with SpeechSynthesis
+      const fallbackTimer = setTimeout(() => {
+        if (!resolved && window.speechSynthesis) {
+          console.log("Using browser speech fallback...");
+          const ut = new SpeechSynthesisUtterance(text);
+          ut.rate = 1.05;
+          ut.onend = done;
+          ut.onerror = done;
+          window.speechSynthesis.speak(ut);
+        }
+      }, 3000);
 
       audio.onended = () => {
-        document.getElementById('pulseRing').className = "pulse-ring";
-        resolve();
+        clearTimeout(fallbackTimer);
+        done();
       };
       audio.onerror = () => {
-        document.getElementById('pulseRing').className = "pulse-ring";
-        resolve();
+        clearTimeout(fallbackTimer);
+        if (!resolved && window.speechSynthesis) {
+          const ut = new SpeechSynthesisUtterance(text);
+          ut.onend = done;
+          ut.onerror = done;
+          window.speechSynthesis.speak(ut);
+        } else {
+          done();
+        }
       };
-      audio.play().catch(e => {
-        console.log("Audio play caught:", e);
-        document.getElementById('pulseRing').className = "pulse-ring";
-        resolve();
+
+      audio.play().catch(() => {
+        clearTimeout(fallbackTimer);
+        if (!resolved && window.speechSynthesis) {
+          const ut = new SpeechSynthesisUtterance(text);
+          ut.onend = done;
+          ut.onerror = done;
+          window.speechSynthesis.speak(ut);
+        } else {
+          done();
+        }
       });
     });
   }
 
-  function updateHuntCard(attempt, status, step) {
-    const cardId = `cardLine${Math.min(attempt, 3)}`;
-    const tagId = `tagLine${Math.min(attempt, 3)}`;
-    const card = document.getElementById(cardId);
-    const tag = document.getElementById(tagId);
-    if (!card || !tag) return;
-
-    if (status === 'DIFFICULTY_FORWARDING') {
-      card.className = "hunt-card difficulty";
-      tag.className = "hunt-status-tag tag-difficulty";
-      tag.innerText = "Difficulty";
-    } else if (status === 'HANDOVER_COMPLETE') {
-      card.className = "hunt-card connected";
-      tag.className = "hunt-status-tag tag-connected";
-      tag.innerText = "Picked Up";
-    }
-  }
-
-  function endRealCall() {
-    isCallActive = false;
+  function endCall() {
+    inCall = false;
     clearInterval(timerInterval);
-    updateCallButton(false);
-    setStatus("⚪ Call Ended", "");
-    document.getElementById('pulseRing').className = "pulse-ring";
+    updateUI(false);
+    setSphereState('idle');
+    setStatus('Call Ended', '#64748b');
+    setCaption('Tap the button to start a new call');
 
-    const audio = document.getElementById('phoneAudio');
+    const audio = document.getElementById('audioStream');
     audio.pause();
     audio.currentTime = 0;
-
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (recognition) {
       try { recognition.stop(); } catch(e) {}
     }
-
-    addBubble("system", "📴 Call Ended. Click Call to place another call anytime.");
-
-    // Reset hunt cards
-    for (let i = 1; i <= 3; i++) {
-      const card = document.getElementById(`cardLine${i}`);
-      const tag = document.getElementById(`tagLine${i}`);
-      if (card && tag) {
-        card.className = "hunt-card";
-        tag.className = "hunt-status-tag tag-standby";
-        tag.innerText = "Standby";
-      }
-    }
   }
 
-  function updateCallButton(inCall) {
-    const btn = document.getElementById('btnCallAction');
-    if (inCall) {
-      btn.className = "btn-call end";
-      btn.title = "End Call";
-      btn.innerHTML = `
-        <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
-        </svg>
-      `;
+  function updateUI(active) {
+    const btn = document.getElementById('btnCall');
+    const label = document.getElementById('callLabel');
+    const timer = document.getElementById('callTimer');
+    const icon = document.getElementById('callIcon');
+
+    if (active) {
+      btn.className = "btn-call in-call";
+      label.innerText = "End Call";
+      timer.className = "call-timer visible";
+      icon.innerHTML = `<path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>`;
     } else {
-      btn.className = "btn-call start";
-      btn.title = "Start Call";
-      btn.innerHTML = `
-        <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.01l-2.23 2.1z"/>
-        </svg>
-      `;
+      btn.className = "btn-call";
+      label.innerText = "Start Call";
+      timer.className = "call-timer";
+      icon.innerHTML = `<path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.01l-2.23 2.1z"/>`;
     }
   }
 
-  function setStatus(text, type) {
-    const pill = document.getElementById('callStatusPill');
-    pill.className = `call-status-pill ${type}`;
-    pill.innerText = text;
+  function setStatus(text, color) {
+    const s = document.getElementById('captionStatus');
+    s.innerText = text;
+    s.style.color = color;
   }
 
-  function addBubble(sender, text) {
-    const body = document.getElementById('phoneBody');
-    const b = document.createElement('div');
-    b.className = `phone-bubble ${sender}`;
-    b.innerText = text;
-    body.appendChild(b);
-    body.scrollTop = body.scrollHeight;
+  function setCaption(text) {
+    document.getElementById('captionText').innerText = text;
   }
+
+  function setSphereState(st) {
+    sphereState = st;
+    const glow = document.getElementById('ambientGlow');
+    glow.className = `ambient-glow ${st}`;
+  }
+
+  // ── 6. 3D ORGANIC FLUID SPHERE (HTML5 CANVAS 60FPS) ───────────────────────
+  const canvas = document.getElementById('sphereCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  const CX = W / 2;
+  const CY = H / 2;
+  const BASE_R = 150;
+
+  let time = 0;
+  const RINGS = 34;
+  const PTS_PER_RING = 48;
+
+  function renderSphere() {
+    ctx.clearRect(0, 0, W, H);
+
+    let speed = 0.02;
+    let waveAmp = 6;
+    let rotY = time * 0.4;
+    let rotX = Math.sin(time * 0.3) * 0.3;
+
+    if (sphereState === 'speaking') {
+      speed = 0.055;
+      waveAmp = 28;
+    } else if (sphereState === 'listening') {
+      speed = 0.035;
+      waveAmp = 16;
+    }
+
+    time += speed;
+
+    // Draw 3D wireframe point rings
+    for (let r = 0; r < RINGS; r++) {
+      const v = (r / (RINGS - 1)) * Math.PI; // 0 to PI (latitude)
+      const ringPoints = [];
+
+      for (let p = 0; p < PTS_PER_RING; p++) {
+        const u = (p / PTS_PER_RING) * Math.PI * 2; // 0 to 2PI (longitude)
+
+        // 3D Organic Wave Perturbation
+        const wave1 = Math.sin(u * 3 + time * 2) * Math.cos(v * 4 + time);
+        const wave2 = Math.sin(u * 5 - time) * Math.sin(v * 3 + time * 1.5);
+        const curR = BASE_R + (wave1 + wave2) * waveAmp;
+
+        // Base 3D Sphere coordinates
+        let x = curR * Math.sin(v) * Math.cos(u);
+        let y = curR * Math.cos(v);
+        let z = curR * Math.sin(v) * Math.sin(u);
+
+        // Rotation around X axis
+        const cosX = Math.cos(rotX);
+        const sinX = Math.sin(rotX);
+        const y1 = y * cosX - z * sinX;
+        const z1 = y * sinX + z * cosX;
+
+        // Rotation around Y axis
+        const cosY = Math.cos(rotY);
+        const sinY = Math.sin(rotY);
+        const x2 = x * cosY + z1 * sinY;
+        const z2 = -x * sinY + z1 * cosY;
+
+        // Perspective Projection
+        const fov = 420;
+        const scale = fov / (fov + z2 + 100);
+        const px = CX + x2 * scale;
+        const py = CY + y1 * scale;
+
+        ringPoints.push({ px, py, z: z2, scale });
+      }
+
+      // Connect ring points with glowing dynamic strokes
+      ctx.beginPath();
+      for (let i = 0; i <= PTS_PER_RING; i++) {
+        const pt = ringPoints[i % PTS_PER_RING];
+        if (i === 0) ctx.moveTo(pt.px, pt.py);
+        else ctx.lineTo(pt.px, pt.py);
+      }
+
+      // Dynamic color palette based on state
+      const depthAlpha = Math.max(0.08, Math.min(0.65, (ringPoints[0].z + BASE_R) / (BASE_R * 2)));
+
+      if (sphereState === 'speaking') {
+        // Vibrant Sapphire Blue & Gold
+        ctx.strokeStyle = `rgba(14, 165, 233, ${depthAlpha * 0.9})`;
+        ctx.lineWidth = 1.4;
+      } else if (sphereState === 'listening') {
+        // Emerald Glow
+        ctx.strokeStyle = `rgba(16, 185, 129, ${depthAlpha * 0.9})`;
+        ctx.lineWidth = 1.4;
+      } else {
+        // Minimal Charcoal / Slate
+        ctx.strokeStyle = `rgba(15, 23, 42, ${depthAlpha * 0.45})`;
+        ctx.lineWidth = 1.0;
+      }
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(renderSphere);
+  }
+
+  renderSphere();
 </script>
 
 </body>

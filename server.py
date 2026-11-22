@@ -48,9 +48,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API Routers
+# Include API Routers (mounted both at root and with /api and /kros prefixes)
 app.include_router(kros_router)
+app.include_router(kros_router, prefix="/kros")
 app.include_router(sim_router)
+app.include_router(sim_router, prefix="/api")
 
 # Mount Static Files for Demo Dashboard
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")

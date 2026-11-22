@@ -19,7 +19,7 @@ from audio.fish_tts import fish_tts
 from config import fish_audio_config
 
 logger = logging.getLogger("simulation_api")
-sim_router = APIRouter(prefix="/api", tags=["Simulation & Demo"])
+sim_router = APIRouter(tags=["Simulation & Demo"])
 
 # Store simulated agents in memory
 _SIM_AGENTS: Dict[str, StallionDealershipAgent] = {}
