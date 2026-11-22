@@ -175,6 +175,44 @@
       color: #64748b;
     }
 
+    /* Minimal Quick Action Chips (Active during call) */
+    .quick-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 6px;
+      max-width: 460px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .quick-chips.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .chip {
+      background: rgba(15, 23, 42, 0.04);
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .chip:hover {
+      background: rgba(14, 165, 233, 0.1);
+      border-color: rgba(14, 165, 233, 0.4);
+      color: #0284c7;
+      transform: translateY(-1px);
+    }
+    .chip:active {
+      transform: scale(0.97);
+    }
+
     /* Soft Glow Radial */
     .ambient-glow {
       position: absolute;
@@ -229,6 +267,14 @@
       </svg>
     </button>
     <div class="call-label" id="callLabel">Start Call</div>
+
+    <!-- Quick in-call suggestion chips (works alongside hands-free voice) -->
+    <div class="quick-chips" id="quickChips">
+      <button class="chip" id="btnSimulate" onclick="handleUserUtterance('I want to buy a new Nissan Patrol SUV', isAudioSpeaking)">🚗 Nissan Patrol</button>
+      <button class="chip" onclick="handleUserUtterance('I need routine car service for my Hyundai Santa Fe', isAudioSpeaking)">🔧 Hyundai Service</button>
+      <button class="chip" onclick="handleUserUtterance('Looking for genuine Changan spare parts', isAudioSpeaking)">⚙️ Spare Parts</button>
+      <button class="chip" onclick="handleUserUtterance('I want to speak with management about an urgent complaint', isAudioSpeaking)">⚠️ Complaint</button>
+    </div>
   </div>
 
   <!-- Dedicated Audio Player for Fish Audio -->
@@ -785,14 +831,20 @@
       label.innerText = "End Call";
       timer.className = "call-timer visible";
       icon.innerHTML = `<path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>`;
+      const chips = document.getElementById('quickChips');
+      if (chips) chips.className = "quick-chips visible";
     } else {
       btn.className = "btn-call";
       label.innerText = "Start Call";
       timer.className = "call-timer";
       icon.innerHTML = `<path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.01l-2.23 2.1z"/>`;
       document.getElementById('memoryBadge').className = "memory-badge";
+      const chips = document.getElementById('quickChips');
+      if (chips) chips.className = "quick-chips";
     }
   }
+
+  window.handleUserUtterance = handleUserUtterance;
 
   function setStatus(text, color) {
     const s = document.getElementById('captionStatus');
