@@ -7,6 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="/audio_assets.js"></script>
+  <script>
+    if (!window.PRELOADED_AUDIO_DATA) {
+      var _s = document.createElement('script');
+      _s.src = '/static/audio_assets.js';
+      document.head.appendChild(_s);
+    }
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -317,7 +325,9 @@
   let audioCtx = null;
   let currentSourceNode = null;
   let audioStartTime = 0;
+  let currentSpeakingText = "";
   const AUDIO_CACHE = {}; // Map of preset_name -> ArrayBuffer
+  const DECODED_AUDIO_CACHE = {}; // Map of preset_name -> AudioBuffer
 
   // Exact interruption pattern from localcodegenbackup (vobiz_sdk_routes.py:2216-2224)
   const BARGE_IN_TRIGGER_PHRASES = [
@@ -338,7 +348,6 @@
 
     // 1. Casual listener nods (e.g. "okay", "hmm", "yeah") must NEVER interrupt agent speech
     if (CASUAL_LISTENER_NODS.includes(clean)) {
-      console.log("[BARGE-IN IGNORED: Casual listener nod/filler]:", clean);
       return false;
     }
 
@@ -352,22 +361,32 @@
       return true;
     }
 
-    // 3. Grace period: protect first 1.8s of agent speech from accidental mic pickup/speaker echo
+    // 3. Grace period: protect first 2.0s of agent speech from accidental mic pickup/speaker echo
     const elapsed = Date.now() - audioStartTime;
-    if (elapsed < 1800) {
-      console.log(`[BARGE-IN IGNORED: Within 1.8s grace period (${elapsed}ms < 1800ms)]:`, clean);
+    if (elapsed < 2000) {
       return false;
     }
 
-    // 4. Substantial human utterance threshold: must be >= 3 words and >= 10 chars
-    // Prevents line hiss, breathing, keyboard clicks, and laptop speaker echo from killing audio
+    // 4. Acoustic Echo Filter: Ignore phrases that overlap with what Zola is currently speaking!
+    if (currentSpeakingText) {
+      const heardWords = clean.split(/\s+/).filter(w => w.length > 2);
+      let echoCount = 0;
+      for (const w of heardWords) {
+        if (currentSpeakingText.includes(w)) echoCount++;
+      }
+      if (heardWords.length > 0 && (echoCount / heardWords.length) >= 0.35) {
+        console.log("[BARGE-IN IGNORED: Echo of agent's own voice]:", clean);
+        return false;
+      }
+    }
+
+    // 5. Substantial human utterance threshold: must be >= 4 words and >= 14 chars
     const words = clean.split(/\s+/).filter(w => w.length > 0);
-    if (words.length >= 3 && clean.length >= 10) {
+    if (words.length >= 4 && clean.length >= 14) {
       console.log("[BARGE-IN CONFIRMED: Substantial speech sentence]:", clean);
       return true;
     }
 
-    console.log("[BARGE-IN IGNORED: Insufficient length/confidence]:", clean);
     return false;
   }
 
@@ -386,6 +405,24 @@
     }
   }
 
+  // Convert base64 Data URI to ArrayBuffer synchronously
+  function base64ToArrayBuffer(dataUri) {
+    try {
+      const parts = dataUri.split(',');
+      const base64 = parts.length > 1 ? parts[1] : parts[0];
+      const binaryString = window.atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    } catch(e) {
+      console.warn("Base64 decode error:", e);
+      return null;
+    }
+  }
+
   // Pre-fetch all Nigerian Fish Audio MP3s into memory on page load
   async function preloadAudioAssets() {
     const assets = [
@@ -394,30 +431,18 @@
       'support_intro', 'sales_handover', 'general_handover'
     ];
     for (const name of assets) {
-      const candidatePaths = [
-        `/audio/${name}.mp3`,
-        `/static/audio/${name}.mp3`,
-        `/public/audio/${name}.mp3`
-      ];
-      for (const p of candidatePaths) {
-        try {
-          const res = await fetch(p);
-          if (res.ok) {
-            const buf = await res.arrayBuffer();
-            if (buf && buf.byteLength > 1000) {
-              AUDIO_CACHE[name] = buf;
-              break;
-            }
-          }
-        } catch(e) {}
+      if (window.PRELOADED_AUDIO_DATA && window.PRELOADED_AUDIO_DATA[name]) {
+        const buf = base64ToArrayBuffer(window.PRELOADED_AUDIO_DATA[name]);
+        if (buf) AUDIO_CACHE[name] = buf;
       }
     }
     console.log("[AUDIO CACHE READY] Preloaded Nigerian voice assets:", Object.keys(AUDIO_CACHE));
   }
-  preloadAudioAssets();
+  setTimeout(preloadAudioAssets, 150);
 
   function stopAudioImmediately() {
     isAudioSpeaking = false;
+    currentSpeakingText = "";
     if (currentSourceNode) {
       try { currentSourceNode.stop(0); } catch(e) {}
       currentSourceNode = null;
@@ -452,8 +477,8 @@
     return null;
   }
 
-  // Play audio buffer or URL with Web Audio API or HTML5 Audio
-  function playBufferOrUrl(bufferOrUrl, text) {
+  // Play audio buffer, data URI, or URL with Web Audio API or HTML5 Audio
+  function playBufferOrUrl(bufferOrUrl, text, presetName = null) {
     return new Promise(async (resolve) => {
       if (!inCall || abortHunt) {
         return resolve(false);
@@ -461,6 +486,7 @@
 
       isAudioSpeaking = true;
       audioStartTime = Date.now();
+      currentSpeakingText = (text || "").toLowerCase();
       setSphereState('speaking');
       setStatus('Zola Speaking', '#0ea5e9');
       setCaption(text);
@@ -471,6 +497,7 @@
           done = true;
           isAudioSpeaking = false;
           audioStartTime = 0;
+          currentSpeakingText = "";
           activeAudioAbort = null;
           if (currentSourceNode) {
             try { currentSourceNode.stop(0); } catch(e) {}
@@ -490,27 +517,61 @@
 
       activeAudioAbort = () => finish(true);
 
-      // Attempt 1: Web Audio API (instant, non-blocking, pitch-perfect)
+      // Failsafe timeout so audio never hangs indefinitely
+      const safetyTimer = setTimeout(() => {
+        if (!done) {
+          console.warn("[AUDIO TIMEOUT SAFEGUARD FIRED]");
+          finish(false);
+        }
+      }, 12000);
+
+      const originalFinish = finish;
+      const wrappedFinish = (interrupted = false) => {
+        clearTimeout(safetyTimer);
+        originalFinish(interrupted);
+      };
+
+      // Attempt 1: Web Audio API (Instant, pitch-perfect, non-blocking)
       try {
         initAudioContext();
-        let arrayBuffer = null;
-        if (bufferOrUrl instanceof ArrayBuffer) {
-          arrayBuffer = bufferOrUrl;
-        } else if (typeof bufferOrUrl === 'string') {
-          const res = await fetch(bufferOrUrl);
-          if (res.ok) arrayBuffer = await res.arrayBuffer();
-        }
+        if (audioCtx) {
+          let audioBuffer = null;
 
-        if (arrayBuffer && audioCtx) {
-          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-          if (done || abortHunt) return finish(true);
-          const source = audioCtx.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioCtx.destination);
-          currentSourceNode = source;
-          source.onended = () => finish(false);
-          source.start(0);
-          return;
+          // Check if already decoded in cache
+          if (presetName && DECODED_AUDIO_CACHE[presetName]) {
+            audioBuffer = DECODED_AUDIO_CACHE[presetName];
+          } else {
+            let arrayBuffer = null;
+            if (bufferOrUrl instanceof ArrayBuffer) {
+              arrayBuffer = bufferOrUrl;
+            } else if (typeof bufferOrUrl === 'string' && bufferOrUrl.startsWith('data:audio/')) {
+              arrayBuffer = base64ToArrayBuffer(bufferOrUrl);
+            } else if (typeof bufferOrUrl === 'string') {
+              const res = await fetch(bufferOrUrl);
+              const ctype = res.headers.get("content-type") || "";
+              if (res.ok && !ctype.includes("text/html")) {
+                arrayBuffer = await res.arrayBuffer();
+              }
+            }
+
+            if (arrayBuffer && arrayBuffer.byteLength > 200) {
+              audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+              if (presetName && audioBuffer) {
+                DECODED_AUDIO_CACHE[presetName] = audioBuffer;
+              }
+            }
+          }
+
+          if (audioBuffer && audioCtx) {
+            if (done || abortHunt) return wrappedFinish(true);
+            const source = audioCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioCtx.destination);
+            currentSourceNode = source;
+            source.onended = () => wrappedFinish(false);
+            source.start(0);
+            return;
+          }
         }
       } catch (err) {
         console.warn("[WebAudio engine note, using HTML5 fallback]:", err);
@@ -518,12 +579,12 @@
 
       // Attempt 2: HTML5 <audio> element
       const audio = document.getElementById('audioStream');
-      if (!audio) return finish(false);
+      if (!audio) return wrappedFinish(false);
 
-      audio.onended = () => finish(false);
-      audio.onerror = () => {
-        console.warn("[Audio element error]");
-        finish(false);
+      audio.onended = () => wrappedFinish(false);
+      audio.onerror = (e) => {
+        console.warn("[<audio> element error]:", e);
+        wrappedFinish(false);
       };
 
       if (bufferOrUrl instanceof ArrayBuffer) {
@@ -536,7 +597,7 @@
       audio.volume = 1.0;
       audio.play().catch(e => {
         console.warn("[<audio> play caught]:", e);
-        finish(false);
+        wrappedFinish(false);
       });
     });
   }
@@ -545,22 +606,26 @@
   async function speakFishAudio(text, audioUrlHint = null) {
     if (!inCall || abortHunt) return false;
 
-    // 1. Check memory cache by preset
-    let preset = null;
-    if (audioUrlHint) {
+    // 1. Resolve preset name
+    let preset = matchAudioPreset(text);
+    if (!preset && audioUrlHint) {
       const m = audioUrlHint.match(/\/([^\/]+)\.mp3/);
       if (m) preset = m[1];
     }
-    if (!preset) {
-      preset = matchAudioPreset(text);
+
+    // 2. Direct lookup from window.PRELOADED_AUDIO_DATA (Base64 zero-network memory)
+    if (preset && window.PRELOADED_AUDIO_DATA && window.PRELOADED_AUDIO_DATA[preset]) {
+      console.log(`[AUDIO PLAYBACK] Playing '${preset}' instantly from Base64 memory (zero network)`);
+      return await playBufferOrUrl(window.PRELOADED_AUDIO_DATA[preset], text, preset);
     }
 
+    // 3. Check RAM ArrayBuffer cache
     if (preset && AUDIO_CACHE[preset]) {
-      console.log(`[AUDIO PLAYBACK] Playing '${preset}' directly from RAM`);
-      return await playBufferOrUrl(AUDIO_CACHE[preset], text);
+      console.log(`[AUDIO PLAYBACK] Playing '${preset}' from RAM ArrayBuffer`);
+      return await playBufferOrUrl(AUDIO_CACHE[preset], text, preset);
     }
 
-    // 2. Candidate static and API URLs
+    // 4. Candidate static and API URLs
     const candidateUrls = [];
     if (preset) {
       candidateUrls.push(`/audio/${preset}.mp3`);
@@ -578,7 +643,7 @@
     for (const url of candidateUrls) {
       if (!inCall || abortHunt) return false;
       try {
-        const ok = await playBufferOrUrl(url, text);
+        const ok = await playBufferOrUrl(url, text, preset);
         if (ok) return true;
       } catch (e) {
         console.warn(`URL ${url} failed, trying next...`);
@@ -825,8 +890,8 @@
     // 1. Spoken Reassurance (Context-aware acknowledging memory & interruption)
     const rTurn = data.routing_turn;
     if (rTurn && rTurn.message_to_speak) {
-      const ok1 = await speakFishAudio(rTurn.message_to_speak, rTurn.audio_url);
-      if (!ok1 || !inCall || turnId !== activeTurnId || abortHunt) return;
+      await speakFishAudio(rTurn.message_to_speak, rTurn.audio_url);
+      if (!inCall || turnId !== activeTurnId || abortHunt) return;
     }
 
     // 2. Sequential Retries
@@ -841,8 +906,8 @@
       if (step.status === "DIFFICULTY_FORWARDING") {
         setStatus('Line Difficulty', '#f59e0b');
         // Plays authentic Nigerian Fish Audio: "Sorry, some difficulty in the number I dialed, let me forward to another..."
-        const ok = await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/difficulty_retry.mp3");
-        if (!ok || !inCall || turnId !== activeTurnId || abortHunt) break;
+        await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/difficulty_retry.mp3");
+        if (!inCall || turnId !== activeTurnId || abortHunt) break;
       } else if (step.status === "HANDOVER_COMPLETE") {
         setStatus('Connected', '#10b981');
         // Handover confirmation

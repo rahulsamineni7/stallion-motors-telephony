@@ -2,8 +2,12 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/audio_assets.js",
+      "destination": "/api/index.py"
+    },
+    {
       "source": "/audio/(.*)",
-      "destination": "/public/audio/$1"
+      "destination": "/api/index.py"
     },
     {
       "source": "/static/(.*)",

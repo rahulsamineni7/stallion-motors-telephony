@@ -71,6 +71,22 @@ PUBLIC_AUDIO_DIR = os.path.join(PUBLIC_DIR, "audio")
 if os.path.exists(PUBLIC_AUDIO_DIR):
     app.mount("/audio", StaticFiles(directory=PUBLIC_AUDIO_DIR), name="audio")
 
+@app.get("/audio_assets.js")
+@app.get("/static/audio_assets.js")
+@app.get("/public/audio_assets.js")
+@app.get("/api/audio_assets.js")
+async def serve_audio_assets():
+    """Serves preloaded Nigerian Fish Audio base64 assets as JS for zero-network playback."""
+    for folder in [
+        PUBLIC_DIR,
+        STATIC_DIR,
+        os.path.dirname(__file__)
+    ]:
+        js_path = os.path.join(folder, "audio_assets.js")
+        if os.path.exists(js_path):
+            return FileResponse(js_path, media_type="application/javascript")
+    return HTMLResponse(content="// audio_assets not found", media_type="application/javascript")
+
 @app.get("/audio/{filename}")
 @app.get("/public/audio/{filename}")
 @app.get("/static/audio/{filename}")
