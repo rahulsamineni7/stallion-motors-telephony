@@ -316,7 +316,60 @@
   // ── 3. DUAL AUDIO ENGINE: WEB AUDIO API + HTML5 AUDIO ────────────────────
   let audioCtx = null;
   let currentSourceNode = null;
+  let audioStartTime = 0;
   const AUDIO_CACHE = {}; // Map of preset_name -> ArrayBuffer
+
+  // Exact interruption pattern from localcodegenbackup (vobiz_sdk_routes.py:2216-2224)
+  const BARGE_IN_TRIGGER_PHRASES = [
+    "stop", "wait", "hold on", "hang on", "hold up", "no", "wrong",
+    "hold", "pause", "enough", "excuse me", "not now", "stop there",
+    "cancel", "listen", "actually", "wait a minute", "shut up", "no no", "not that"
+  ];
+
+  // Casual listener nods & short fillers that must NEVER cancel agent speech mid-word
+  const CASUAL_LISTENER_NODS = [
+    "hmm", "hm", "uh", "um", "ah", "oh", "ok", "okay", "yeah", "yes", "right", "mhm", "yep", "sure"
+  ];
+
+  function isIntentionalBargeIn(heardText) {
+    if (!isAudioSpeaking) return false;
+    const clean = (heardText || '').toLowerCase().trim();
+    if (!clean) return false;
+
+    // 1. Casual listener nods (e.g. "okay", "hmm", "yeah") must NEVER interrupt agent speech
+    if (CASUAL_LISTENER_NODS.includes(clean)) {
+      console.log("[BARGE-IN IGNORED: Casual listener nod/filler]:", clean);
+      return false;
+    }
+
+    // 2. Explicit interruption commands always barge-in immediately
+    const matchesExplicit = BARGE_IN_TRIGGER_PHRASES.some(phrase => {
+      const rx = new RegExp(`\\b${phrase}\\b`, 'i');
+      return rx.test(clean);
+    });
+    if (matchesExplicit) {
+      console.log("[BARGE-IN CONFIRMED: Matched explicit trigger phrase]:", clean);
+      return true;
+    }
+
+    // 3. Grace period: protect first 1.8s of agent speech from accidental mic pickup/speaker echo
+    const elapsed = Date.now() - audioStartTime;
+    if (elapsed < 1800) {
+      console.log(`[BARGE-IN IGNORED: Within 1.8s grace period (${elapsed}ms < 1800ms)]:`, clean);
+      return false;
+    }
+
+    // 4. Substantial human utterance threshold: must be >= 3 words and >= 10 chars
+    // Prevents line hiss, breathing, keyboard clicks, and laptop speaker echo from killing audio
+    const words = clean.split(/\s+/).filter(w => w.length > 0);
+    if (words.length >= 3 && clean.length >= 10) {
+      console.log("[BARGE-IN CONFIRMED: Substantial speech sentence]:", clean);
+      return true;
+    }
+
+    console.log("[BARGE-IN IGNORED: Insufficient length/confidence]:", clean);
+    return false;
+  }
 
   function initAudioContext() {
     if (!audioCtx) {
@@ -407,6 +460,7 @@
       }
 
       isAudioSpeaking = true;
+      audioStartTime = Date.now();
       setSphereState('speaking');
       setStatus('Zola Speaking', '#0ea5e9');
       setCaption(text);
@@ -416,6 +470,7 @@
         if (!done) {
           done = true;
           isAudioSpeaking = false;
+          audioStartTime = 0;
           activeAudioAbort = null;
           if (currentSourceNode) {
             try { currentSourceNode.stop(0); } catch(e) {}
@@ -567,9 +622,9 @@
         setCaption(`"${heard}..."`);
       }
 
-      // BARGE-IN: If AI is actively speaking and caller talks, CUT OFF AUDIO IMMEDIATELY!
-      if (isAudioSpeaking && heard.length > 1) {
-        console.log("[BARGE-IN TRIGGERED] Caller spoke:", heard);
+      // BARGE-IN: Guarded by localcodegenbackup thresholds (grace period + explicit triggers + substantial speech)
+      if (isAudioSpeaking && isIntentionalBargeIn(heard)) {
+        console.log("[BARGE-IN TRIGGERED] Intentional interruption detected:", heard);
         wasInterruptionFlag = true;
         abortHunt = true; // Signal current hunt steps to abort
         stopAudioImmediately();
@@ -578,30 +633,32 @@
         setCaption(`"${heard}..."`);
       }
 
-      // When browser produces final speech
-      if (finalSpeech && finalSpeech.trim().length > 1) {
-        clearTimeout(speechDebounceTimer);
-        const text = finalSpeech.trim();
-        if (text !== lastProcessedText && !isReplying) {
-          lastProcessedText = text;
-          const wasInterrupted = wasInterruptionFlag;
-          wasInterruptionFlag = false;
-          handleUserUtterance(text, wasInterrupted);
-        }
-      } else if (interim && interim.trim().length > 2 && !isReplying && !isAudioSpeaking) {
-        // Debounce timer for speech when isFinal is delayed by browser
-        clearTimeout(speechDebounceTimer);
-        speechDebounceTimer = setTimeout(() => {
-          if (inCall && !isReplying && !isAudioSpeaking && interim.trim().length > 2) {
-            const text = interim.trim();
-            if (text !== lastProcessedText) {
-              lastProcessedText = text;
-              const wasInterrupted = wasInterruptionFlag;
-              wasInterruptionFlag = false;
-              handleUserUtterance(text, wasInterrupted);
-            }
+      // Process user speech when AI is not actively speaking
+      if (!isAudioSpeaking) {
+        if (finalSpeech && finalSpeech.trim().length > 1) {
+          clearTimeout(speechDebounceTimer);
+          const text = finalSpeech.trim();
+          if (text !== lastProcessedText && !isReplying) {
+            lastProcessedText = text;
+            const wasInterrupted = wasInterruptionFlag;
+            wasInterruptionFlag = false;
+            handleUserUtterance(text, wasInterrupted);
           }
-        }, 1200);
+        } else if (interim && interim.trim().length > 2 && !isReplying) {
+          // Debounce timer for speech when isFinal is delayed by browser
+          clearTimeout(speechDebounceTimer);
+          speechDebounceTimer = setTimeout(() => {
+            if (inCall && !isReplying && !isAudioSpeaking && interim.trim().length > 2) {
+              const text = interim.trim();
+              if (text !== lastProcessedText) {
+                lastProcessedText = text;
+                const wasInterrupted = wasInterruptionFlag;
+                wasInterruptionFlag = false;
+                handleUserUtterance(text, wasInterrupted);
+              }
+            }
+          }, 1200);
+        }
       }
     };
 
