@@ -2,13 +2,14 @@
 Stallion Motors Telephony Server.
 FastAPI Application integrating Kros AI Telephony CPaaS,
 Sarvam AI Speech Infrastructure, and the Dealership Voice Concierge.
+Supports local execution and Vercel Serverless deployment.
 """
 
 import os
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.kros_webhooks import kros_router
@@ -28,6 +29,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Vercel Path Normalization Middleware
+@app.middleware("http")
+async def vercel_path_rewrite_middleware(request: Request, call_next):
+    path = request.scope.get("path", "")
+    # If Vercel rewrites to /api/index.py/something or /api/index.py
+    if path.startswith("/api/index.py"):
+        new_path = path[len("/api/index.py"):]
+        request.scope["path"] = new_path if new_path else "/"
+    return await call_next(request)
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
@@ -46,12 +57,23 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+PUBLIC_DIR = os.path.join(os.path.dirname(__file__), "public")
+if os.path.exists(PUBLIC_DIR):
+    app.mount("/public", StaticFiles(directory=PUBLIC_DIR), name="public")
+
 @app.get("/")
+@app.get("/api")
+@app.get("/api/index.py")
 async def root_index():
     """Serves the interactive web-based telephony dashboard."""
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
+    for folder in [PUBLIC_DIR, STATIC_DIR]:
+        index_path = os.path.join(folder, "index.html")
+        if os.path.exists(index_path):
+            try:
+                with open(index_path, "r", encoding="utf-8") as f:
+                    return HTMLResponse(content=f.read())
+            except Exception:
+                return FileResponse(index_path)
     return {
         "dealership": dealership_config.dealership_name,
         "status": "online",
@@ -60,6 +82,7 @@ async def root_index():
     }
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {
         "status": "healthy",
