@@ -1,18 +1,21 @@
 """
 Fish Audio TTS Engine (api.fish.audio).
 Uses Fish Audio's state-of-the-art voice synthesis model with custom voice cloning.
-Configured with Stallion Motors Concierge voice.
+Configured with Stallion Motors Concierge voice and in-memory phrase caching for real-time responsiveness.
 """
 
 import os
 import io
 import logging
 import httpx
-from typing import Optional
+from typing import Optional, Dict
 from config import fish_audio_config
 
 logger = logging.getLogger("fish_tts")
 logger.setLevel(logging.INFO)
+
+# In-memory audio cache for zero-latency telephony prompts
+_AUDIO_CACHE: Dict[str, bytes] = {}
 
 class FishAudioTTS:
     """
@@ -40,6 +43,10 @@ class FishAudioTTS:
             return b""
 
         clean_text = text.strip()
+        cache_key = f"{self.voice_id}:{clean_text}"
+        if cache_key in _AUDIO_CACHE:
+            return _AUDIO_CACHE[cache_key]
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -56,13 +63,14 @@ class FishAudioTTS:
                 resp = await client.post(self.base_url, headers=headers, json=payload)
                 if resp.status_code == 200 and len(resp.content) > 100:
                     logger.info(f"[FISH AUDIO SUCCESS] Generated {len(resp.content)} bytes for text: '{clean_text[:40]}...'")
+                    _AUDIO_CACHE[cache_key] = resp.content
                     return resp.content
                 elif resp.status_code == 402:
-                    # Retry with free model header if not already set
                     logger.warning("[FISH AUDIO 402] Trying with s2.1-pro-free fallback...")
                     headers["model"] = "s2.1-pro-free"
                     resp = await client.post(self.base_url, headers=headers, json=payload)
                     if resp.status_code == 200:
+                        _AUDIO_CACHE[cache_key] = resp.content
                         return resp.content
                     logger.error(f"[FISH AUDIO ERROR] Status {resp.status_code}: {resp.text}")
                 else:
