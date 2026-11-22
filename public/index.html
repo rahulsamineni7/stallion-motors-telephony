@@ -253,15 +253,19 @@
 
   // ── 2. STATE & MEMORY ────────────────────────────────────────────────────
   let inCall = false;
-  let activeCallId = null;
+  let activeCallId = "call_" + Math.random().toString(36).substring(7);
   let timerInterval = null;
   let callSeconds = 0;
   let recognition = null;
   let isAudioSpeaking = false;
+  let isReplying = false;
+  let abortHunt = false;
+  let activeTurnId = 0;
+  let lastProcessedText = "";
+  let speechDebounceTimer = null;
+  let wasInterruptionFlag = false;
   let activeAudioAbort = null;
   let sphereState = 'idle';
-  let currentTurnEpoch = 0;
-  let wasInterruptionFlag = false;
 
   // ── 3. DUAL AUDIO ENGINE: WEB AUDIO API + HTML5 AUDIO ────────────────────
   let audioCtx = null;
@@ -350,9 +354,9 @@
   }
 
   // Play audio buffer or URL with Web Audio API or HTML5 Audio
-  function playBufferOrUrl(bufferOrUrl, text, epoch) {
+  function playBufferOrUrl(bufferOrUrl, text) {
     return new Promise(async (resolve) => {
-      if (!inCall || (epoch !== undefined && epoch !== currentTurnEpoch)) {
+      if (!inCall || abortHunt) {
         return resolve(false);
       }
 
@@ -371,7 +375,11 @@
             try { currentSourceNode.stop(0); } catch(e) {}
             currentSourceNode = null;
           }
-          if (inCall && !interrupted && (epoch === undefined || epoch === currentTurnEpoch)) {
+          const audioTag = document.getElementById('audioStream');
+          if (audioTag) {
+            try { audioTag.pause(); audioTag.currentTime = 0; } catch(e) {}
+          }
+          if (inCall && !interrupted && !isReplying) {
             setSphereState('listening');
             setStatus('Listening', '#10b981');
           }
@@ -394,7 +402,7 @@
 
         if (arrayBuffer && audioCtx) {
           const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-          if (done) return;
+          if (done || abortHunt) return finish(true);
           const source = audioCtx.createBufferSource();
           source.buffer = audioBuffer;
           source.connect(audioCtx.destination);
@@ -433,8 +441,8 @@
   }
 
   // Pure Nigerian Fish Audio playback (preloaded memory -> static file -> API endpoint)
-  async function speakFishAudio(text, audioUrlHint = null, epoch = undefined) {
-    if (!inCall || (epoch !== undefined && epoch !== currentTurnEpoch)) return false;
+  async function speakFishAudio(text, audioUrlHint = null) {
+    if (!inCall || abortHunt) return false;
 
     // 1. Check memory cache by preset
     let preset = null;
@@ -448,7 +456,7 @@
 
     if (preset && AUDIO_CACHE[preset]) {
       console.log(`[AUDIO PLAYBACK] Playing '${preset}' directly from RAM`);
-      return await playBufferOrUrl(AUDIO_CACHE[preset], text, epoch);
+      return await playBufferOrUrl(AUDIO_CACHE[preset], text);
     }
 
     // 2. Candidate static and API URLs
@@ -467,10 +475,10 @@
     candidateUrls.push(`/audio/tts?provider=fish&text=${encoded}`);
 
     for (const url of candidateUrls) {
-      if (!inCall || (epoch !== undefined && epoch !== currentTurnEpoch)) return false;
+      if (!inCall || abortHunt) return false;
       try {
-        const ok = await playBufferOrUrl(url, text, epoch);
-        return ok;
+        const ok = await playBufferOrUrl(url, text);
+        if (ok) return true;
       } catch (e) {
         console.warn(`URL ${url} failed, trying next...`);
       }
@@ -481,7 +489,10 @@
   // ── 4. SPEECH RECOGNITION WITH INSTANT BARGE-IN (STOP ON INTERRUPT) ──────
   function initSpeech() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return null;
+    if (!SR) {
+      console.warn("SpeechRecognition not supported in this browser.");
+      return null;
+    }
     const rec = new SR();
     rec.continuous = true;
     rec.interimResults = true;
@@ -501,43 +512,97 @@
       }
 
       const heard = (finalSpeech || interim).trim();
+      if (!heard) return;
 
-      // BARGE-IN: If AI is speaking and caller starts talking, CUT OFF AUDIO IMMEDIATELY!
+      console.log(`[SPEECH] final: "${finalSpeech}", interim: "${interim}"`);
+
+      // Subtitle user utterance in real-time
+      if (!isAudioSpeaking) {
+        setCaption(`"${heard}..."`);
+      }
+
+      // BARGE-IN: If AI is actively speaking and caller talks, CUT OFF AUDIO IMMEDIATELY!
       if (isAudioSpeaking && heard.length > 1) {
         console.log("[BARGE-IN TRIGGERED] Caller spoke:", heard);
         wasInterruptionFlag = true;
-        currentTurnEpoch++; // Cancels pending hunt group audio
+        abortHunt = true; // Signal current hunt steps to abort
         stopAudioImmediately();
         setSphereState('interrupted');
         setStatus('Interrupted — Listening', '#ef4444');
         setCaption(`"${heard}..."`);
       }
 
+      // When browser produces final speech
       if (finalSpeech && finalSpeech.trim().length > 1) {
-        const interrupted = wasInterruptionFlag;
-        wasInterruptionFlag = false;
-        currentTurnEpoch++;
-        handleUserSpeech(finalSpeech.trim(), interrupted, currentTurnEpoch);
+        clearTimeout(speechDebounceTimer);
+        const text = finalSpeech.trim();
+        if (text !== lastProcessedText && !isReplying) {
+          lastProcessedText = text;
+          const wasInterrupted = wasInterruptionFlag;
+          wasInterruptionFlag = false;
+          handleUserUtterance(text, wasInterrupted);
+        }
+      } else if (interim && interim.trim().length > 2 && !isReplying && !isAudioSpeaking) {
+        // Debounce timer for speech when isFinal is delayed by browser
+        clearTimeout(speechDebounceTimer);
+        speechDebounceTimer = setTimeout(() => {
+          if (inCall && !isReplying && !isAudioSpeaking && interim.trim().length > 2) {
+            const text = interim.trim();
+            if (text !== lastProcessedText) {
+              lastProcessedText = text;
+              const wasInterrupted = wasInterruptionFlag;
+              wasInterruptionFlag = false;
+              handleUserUtterance(text, wasInterrupted);
+            }
+          }
+        }, 1200);
       }
     };
 
     rec.onerror = (e) => {
-      if (inCall && (e.error === 'no-speech' || e.error === 'network')) {
-        try { rec.start(); } catch(err) {}
+      console.warn("[SpeechRecognition error]:", e.error);
+      if (e.error === 'not-allowed') {
+        setStatus('Microphone Blocked', '#ef4444');
+        setCaption('Please allow microphone access in your browser to speak.');
+      } else if (inCall && (e.error === 'no-speech' || e.error === 'network')) {
+        setTimeout(() => {
+          if (inCall) {
+            try { rec.start(); } catch(err) {}
+          }
+        }, 300);
       }
     };
 
     rec.onend = () => {
-      // Keep listening hands-free continuously during the call
+      // Keep listening hands-free continuously during active call
       if (inCall) {
-        try { rec.start(); } catch(err) {}
+        setTimeout(() => {
+          if (inCall) {
+            try { rec.start(); } catch(err) {}
+          }
+        }, 150);
       }
     };
 
     return rec;
   }
 
-  recognition = initSpeech();
+  function startContinuousSpeech() {
+    if (!recognition) {
+      recognition = initSpeech();
+    }
+    if (recognition) {
+      try {
+        recognition.start();
+      } catch(e) {}
+    }
+    // Explicitly prompt for mic permission if needed
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).catch(err => {
+        console.warn("Mic prompt notice:", err);
+      });
+    }
+  }
 
   // ── 5. CALL TOGGLE & LIFECYCLE ───────────────────────────────────────────
   async function toggleCall() {
@@ -554,8 +619,11 @@
   async function startCall() {
     inCall = true;
     callSeconds = 0;
-    currentTurnEpoch = 1;
-    const myEpoch = currentTurnEpoch;
+    activeCallId = "call_" + Math.random().toString(36).substring(7);
+    activeTurnId = 1;
+    abortHunt = false;
+    isReplying = false;
+    lastProcessedText = "";
     updateUI(true);
 
     setStatus('Connecting', '#0ea5e9');
@@ -570,15 +638,13 @@
     }, 1000);
 
     // Start hands-free speech recognition
-    if (recognition) {
-      try { recognition.start(); } catch(e) {}
-    }
+    startContinuousSpeech();
 
     // Play greeting immediately with zero-lag from memory
     const defaultGreeting = "Hello! Thank you for calling Stallion Motors Dealership. I am Zola, your virtual concierge. How may I direct your call or assist you with your vehicle today?";
-    const playGreetingPromise = speakFishAudio(defaultGreeting, "/audio/greeting.mp3", myEpoch);
+    const playGreetingPromise = speakFishAudio(defaultGreeting, "/audio/greeting.mp3");
 
-    // Backend Init concurrently
+    // Backend Init concurrently to register call
     apiPost('/simulate/start-call', {
       caller_phone: "+2348035551234",
       caller_name: "Valued Customer"
@@ -590,18 +656,24 @@
 
     await playGreetingPromise;
 
-    if (inCall && !isAudioSpeaking && myEpoch === currentTurnEpoch) {
+    if (inCall && !isAudioSpeaking && !isReplying) {
       setSphereState('listening');
       setStatus('Listening', '#10b981');
       setCaption('Speak your concern naturally (interrupt anytime)...');
     }
   }
 
-  async function handleUserSpeech(utterance, wasInterruption, myEpoch) {
-    if (!inCall || myEpoch !== currentTurnEpoch) return;
+  async function handleUserUtterance(utterance, wasInterruption) {
+    if (!inCall) return;
+    const turnId = ++activeTurnId;
+    isReplying = true;
+    abortHunt = false;
+
     setCaption(`"${utterance}"`);
     setStatus(wasInterruption ? 'Adjusting Concern' : 'Processing', '#f59e0b');
     setSphereState('idle');
+
+    console.log(`[USER UTTERANCE ${turnId}] "${utterance}", interrupted: ${wasInterruption}`);
 
     const data = await apiPost('/simulate/auto-flow', {
       call_id: activeCallId,
@@ -609,19 +681,24 @@
       is_interruption: wasInterruption
     });
 
-    if (myEpoch !== currentTurnEpoch || !inCall) return;
+    if (!inCall || turnId !== activeTurnId || abortHunt) {
+      console.log(`[TURN ${turnId} ABORTED OR SUPERSEDED]`);
+      isReplying = false;
+      return;
+    }
 
     if (data) {
       // Update Mini Memory Badge
       if (data.memory) {
         updateMemoryBadge(data.memory);
       }
-      await executeTelephonyHunt(data, myEpoch);
+      await executeTelephonyHunt(data, turnId);
     } else {
-      await speakFishAudio("Understood! Let me forward you to our dealership specialist right away.", null, myEpoch);
+      await speakFishAudio("Understood! Let me forward you to our dealership specialist right away.", null);
     }
 
-    if (inCall && !isAudioSpeaking && myEpoch === currentTurnEpoch) {
+    if (inCall && turnId === activeTurnId && !isAudioSpeaking) {
+      isReplying = false;
       setSphereState('listening');
       setStatus('Listening', '#10b981');
       setCaption('Speak your concern naturally (interrupt anytime)...');
@@ -639,32 +716,34 @@
   }
 
   // ── 6. TELEPHONY HUNT GROUP FLOW WITH NIGERIAN FISH AUDIO ─────────────────
-  async function executeTelephonyHunt(data, myEpoch) {
-    if (!inCall || myEpoch !== currentTurnEpoch) return;
+  async function executeTelephonyHunt(data, turnId) {
+    if (!inCall || turnId !== activeTurnId || abortHunt) return;
 
     // 1. Spoken Reassurance (Context-aware acknowledging memory & interruption)
     const rTurn = data.routing_turn;
-    const ok1 = await speakFishAudio(rTurn.message_to_speak, rTurn.audio_url, myEpoch);
-    if (!ok1 || myEpoch !== currentTurnEpoch || !inCall) return;
+    if (rTurn && rTurn.message_to_speak) {
+      const ok1 = await speakFishAudio(rTurn.message_to_speak, rTurn.audio_url);
+      if (!ok1 || !inCall || turnId !== activeTurnId || abortHunt) return;
+    }
 
     // 2. Sequential Retries
     const steps = data.telephony_hunt_steps || [];
     for (const step of steps) {
-      if (!inCall || myEpoch !== currentTurnEpoch) break;
+      if (!inCall || turnId !== activeTurnId || abortHunt) break;
 
       // Realistic phone ringing pause between hunt attempts
       await new Promise(r => setTimeout(r, 650));
-      if (!inCall || myEpoch !== currentTurnEpoch) break;
+      if (!inCall || turnId !== activeTurnId || abortHunt) break;
 
       if (step.status === "DIFFICULTY_FORWARDING") {
         setStatus('Line Difficulty', '#f59e0b');
         // Plays authentic Nigerian Fish Audio: "Sorry, some difficulty in the number I dialed, let me forward to another..."
-        const ok = await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/difficulty_retry.mp3", myEpoch);
-        if (!ok || myEpoch !== currentTurnEpoch || !inCall) break;
+        const ok = await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/difficulty_retry.mp3");
+        if (!ok || !inCall || turnId !== activeTurnId || abortHunt) break;
       } else if (step.status === "HANDOVER_COMPLETE") {
         setStatus('Connected', '#10b981');
         // Handover confirmation
-        await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/sales_handover.mp3", myEpoch);
+        await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/sales_handover.mp3");
         if (step.connected_to) {
           setCaption(`Handover Complete • Connected to ${step.connected_to.name} (${step.connected_to.role})`);
         }
@@ -672,7 +751,7 @@
       } else if (step.status === "ALL_BUSY") {
         setStatus('All Lines Busy', '#ef4444');
         // All busy fallback
-        await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/all_busy.mp3", myEpoch);
+        await speakFishAudio(step.message_to_speak, step.audio_url || "/audio/all_busy.mp3");
         setTimeout(() => { if (inCall) endCall(); }, 3000);
         break;
       }
@@ -681,7 +760,8 @@
 
   function endCall() {
     inCall = false;
-    currentTurnEpoch++;
+    abortHunt = true;
+    isReplying = false;
     clearInterval(timerInterval);
     stopAudioImmediately();
     updateUI(false);

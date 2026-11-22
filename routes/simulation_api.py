@@ -29,7 +29,7 @@ class StartCallRequest(BaseModel):
     caller_name: str = "Chief Adeleke"
 
 class TurnRequest(BaseModel):
-    call_id: str
+    call_id: Optional[str] = None
     utterance: str
     is_interruption: bool = False
 
@@ -157,6 +157,8 @@ async def simulate_auto_flow(req: TurnRequest):
     Runs the complete end-to-end conversation turn and telephony hunt automatically!
     Returns full transcript of every message spoken during retries and conclusion.
     """
+    if not req.call_id:
+        req.call_id = f"sim_{uuid.uuid4().hex[:8]}"
     agent = _SIM_AGENTS.get(req.call_id)
     if not agent:
         # Create on the fly if needed
