@@ -66,6 +66,39 @@
       border-radius: 6px;
       letter-spacing: 0.5px;
     }
+    .badge-mic {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.05);
+      color: #64748b;
+      letter-spacing: 0.4px;
+      transition: all 0.3s ease;
+    }
+    .badge-mic.live {
+      background: rgba(16, 185, 129, 0.15);
+      color: #059669;
+    }
+    .mic-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #94a3b8;
+      transition: all 0.3s ease;
+    }
+    .mic-dot.live {
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+      animation: micPulse 1.2s infinite ease-in-out;
+    }
+    @keyframes micPulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.4); opacity: 1; }
+    }
     .call-timer {
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
@@ -251,6 +284,7 @@
     <div class="brand-subtitle">
       <span>Zola Concierge</span>
       <span class="badge-nigeria">🇳🇬 Nigerian Voice</span>
+      <span class="badge-mic" id="badgeMic"><span class="mic-dot" id="micStatusDot"></span> <span id="micLabel">Mic Standby</span></span>
     </div>
     <div class="call-timer" id="callTimer">00:00</div>
   </header>
@@ -317,6 +351,9 @@
   let timerInterval = null;
   let callSeconds = 0;
   let recognition = null;
+  let isRecognitionActive = false;
+  let recognitionRestartTimeout = null;
+  let recognitionWatchdog = null;
   let isAudioSpeaking = false;
   let isReplying = false;
   let abortHunt = false;
@@ -352,9 +389,9 @@
     const clean = (heardText || '').toLowerCase().trim();
     if (!clean) return false;
 
-    // 1. Mandatory grace period: protect first 2.2s of agent speech from accidental mic pickup/speaker echo
+    // 1. Brief grace period (400ms) to avoid acoustic click on initial audio play
     const elapsed = Date.now() - audioStartTime;
-    if (elapsed < 2200) {
+    if (elapsed < 400) {
       return false;
     }
 
@@ -363,14 +400,14 @@
       return false;
     }
 
-    // 3. Acoustic Echo Filter: Ignore phrases that overlap with what Zola is currently speaking!
+    // 3. Acoustic Echo Filter: Ignore phrases that strongly overlap with what Zola is currently speaking
     if (currentSpeakingText) {
       const heardWords = clean.split(/\s+/).filter(w => w.length > 2);
       let echoCount = 0;
       for (const w of heardWords) {
-        if (currentSpeakingText.includes(w)) echoCount++;
+        if (currentSpeakingText.toLowerCase().includes(w)) echoCount++;
       }
-      if (heardWords.length > 0 && (echoCount / heardWords.length) >= 0.25) {
+      if (heardWords.length > 0 && (echoCount / heardWords.length) >= 0.5) {
         console.log("[BARGE-IN IGNORED: Echo of agent's own voice]:", clean);
         return false;
       }
@@ -386,10 +423,10 @@
       return true;
     }
 
-    // 5. Substantial human utterance threshold: must be >= 4 words and >= 14 chars
+    // 5. Conversational speech threshold: any user utterance >= 2 words or >= 8 chars
     const words = clean.split(/\s+/).filter(w => w.length > 0);
-    if (words.length >= 4 && clean.length >= 14) {
-      console.log("[BARGE-IN CONFIRMED: Substantial speech sentence]:", clean);
+    if (words.length >= 2 || clean.length >= 8) {
+      console.log("[BARGE-IN CONFIRMED: Conversational speech detected]:", clean);
       return true;
     }
 
@@ -513,9 +550,10 @@
           if (audioTag) {
             try { audioTag.pause(); audioTag.currentTime = 0; } catch(e) {}
           }
-          if (inCall && !interrupted && !isReplying) {
+          if (inCall && !interrupted) {
+            isReplying = false;
             setSphereState('listening');
-            setStatus('Listening', '#10b981');
+            setStatus('Listening to You', '#10b981');
           }
           resolve(!interrupted);
         }
@@ -658,17 +696,106 @@
     return false;
   }
 
-  // ── 4. SPEECH RECOGNITION WITH INSTANT BARGE-IN (STOP ON INTERRUPT) ──────
+  // ── 4. SPEECH RECOGNITION WITH ACTIVE WATCHDOG & TURBO VAD ──────────────
+  function updateMicIndicator(state, detail = '') {
+    const badge = document.getElementById('badgeMic');
+    const dot = document.getElementById('micStatusDot');
+    const label = document.getElementById('micLabel');
+    if (!badge || !dot || !label) return;
+
+    if (state === 'live') {
+      badge.className = 'badge-mic live';
+      dot.className = 'mic-dot live';
+      label.innerText = detail || 'Mic Active';
+    } else if (state === 'hearing') {
+      badge.className = 'badge-mic live';
+      dot.className = 'mic-dot live';
+      label.innerText = detail || 'Hearing You...';
+    } else if (state === 'blocked') {
+      badge.className = 'badge-mic';
+      badge.style.background = 'rgba(239, 68, 68, 0.15)';
+      badge.style.color = '#dc2626';
+      dot.className = 'mic-dot';
+      dot.style.background = '#dc2626';
+      label.innerText = 'Mic Blocked';
+    } else {
+      badge.className = 'badge-mic';
+      badge.style.background = '';
+      badge.style.color = '';
+      dot.className = 'mic-dot';
+      dot.style.background = '';
+      label.innerText = detail || 'Mic Standby';
+    }
+  }
+
+  function safeStartRecognition() {
+    if (!inCall || isRecognitionActive || !recognition) return;
+    try {
+      recognition.start();
+    } catch(err) {
+      // In Chrome, start() throws InvalidStateError if already in transition
+    }
+  }
+
+  function restartRecognitionSafely(delay = 150) {
+    if (!inCall) return;
+    clearTimeout(recognitionRestartTimeout);
+    recognitionRestartTimeout = setTimeout(() => {
+      if (inCall && !isRecognitionActive) {
+        safeStartRecognition();
+      }
+    }, delay);
+  }
+
   function initSpeech() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       console.warn("SpeechRecognition not supported in this browser.");
+      updateMicIndicator('blocked', 'Mic API Unsupported');
       return null;
     }
     const rec = new SR();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = 'en-US';
+    rec.lang = navigator.language || 'en-US';
+
+    rec.onstart = () => {
+      isRecognitionActive = true;
+      console.log("[SPEECH] Engine active & listening");
+      updateMicIndicator('live', 'Mic Active');
+    };
+
+    rec.onaudiostart = () => {
+      isRecognitionActive = true;
+    };
+
+    rec.onspeechstart = () => {
+      if (!isAudioSpeaking) {
+        updateMicIndicator('hearing', 'Hearing You...');
+      }
+    };
+
+    rec.onerror = (e) => {
+      console.warn("[SPEECH error]:", e.error);
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        isRecognitionActive = false;
+        updateMicIndicator('blocked', 'Microphone Blocked');
+        setStatus('Microphone Blocked', '#ef4444');
+        setCaption('Please allow microphone access in your browser to speak.');
+      } else {
+        isRecognitionActive = false;
+        restartRecognitionSafely(200);
+      }
+    };
+
+    rec.onend = () => {
+      isRecognitionActive = false;
+      if (inCall) {
+        restartRecognitionSafely(100);
+      } else {
+        updateMicIndicator('standby', 'Mic Standby');
+      }
+    };
 
     rec.onresult = (e) => {
       if (!inCall) return;
@@ -686,22 +813,24 @@
       const heard = (finalSpeech || interim).trim();
       if (!heard) return;
 
-      console.log(`[SPEECH] final: "${finalSpeech}", interim: "${interim}"`);
+      console.log(`[SPEECH HEARD] final="${finalSpeech}", interim="${interim}"`);
 
       // Subtitle user utterance in real-time
       if (!isAudioSpeaking) {
         setCaption(`"${heard}..."`);
+        updateMicIndicator('hearing', `Hearing: "${heard.slice(0, 18)}..."`);
       }
 
-      // BARGE-IN: Guarded by localcodegenbackup thresholds (grace period + explicit triggers + substantial speech)
+      // BARGE-IN INTERRUPTION: If AI is speaking and user speaks conversational intent
       if (isAudioSpeaking && isIntentionalBargeIn(heard)) {
         console.log("[BARGE-IN TRIGGERED] Intentional interruption detected:", heard);
         wasInterruptionFlag = true;
         abortHunt = true; // Signal current hunt steps to abort
         stopAudioImmediately();
         setSphereState('interrupted');
-        setStatus('Interrupted — Listening', '#ef4444');
+        setStatus('Listening to You', '#10b981');
         setCaption(`"${heard}..."`);
+        updateMicIndicator('hearing', `Hearing: "${heard.slice(0, 18)}..."`);
       }
 
       // Process user speech when AI is not actively speaking
@@ -715,46 +844,20 @@
             wasInterruptionFlag = false;
             handleUserUtterance(text, wasInterrupted);
           }
-        } else if (interim && interim.trim().length > 2 && !isReplying) {
-          // Debounce timer for speech when isFinal is delayed by browser
+        } else if (heard && heard.length > 2 && !isReplying) {
+          // Turbo VAD silence timer: commit interim after 650ms if isFinal is delayed
           clearTimeout(speechDebounceTimer);
           speechDebounceTimer = setTimeout(() => {
-            if (inCall && !isReplying && !isAudioSpeaking && interim.trim().length > 2) {
-              const text = interim.trim();
-              if (text !== lastProcessedText) {
-                lastProcessedText = text;
+            if (inCall && !isReplying && !isAudioSpeaking && heard.length > 2) {
+              if (heard !== lastProcessedText) {
+                lastProcessedText = heard;
                 const wasInterrupted = wasInterruptionFlag;
                 wasInterruptionFlag = false;
-                handleUserUtterance(text, wasInterrupted);
+                handleUserUtterance(heard, wasInterrupted);
               }
             }
-          }, 1200);
+          }, 650);
         }
-      }
-    };
-
-    rec.onerror = (e) => {
-      console.warn("[SpeechRecognition error]:", e.error);
-      if (e.error === 'not-allowed') {
-        setStatus('Microphone Blocked', '#ef4444');
-        setCaption('Please allow microphone access in your browser to speak.');
-      } else if (inCall && (e.error === 'no-speech' || e.error === 'network')) {
-        setTimeout(() => {
-          if (inCall) {
-            try { rec.start(); } catch(err) {}
-          }
-        }, 300);
-      }
-    };
-
-    rec.onend = () => {
-      // Keep listening hands-free continuously during active call
-      if (inCall) {
-        setTimeout(() => {
-          if (inCall) {
-            try { rec.start(); } catch(err) {}
-          }
-        }, 150);
       }
     };
 
@@ -765,17 +868,7 @@
     if (!recognition) {
       recognition = initSpeech();
     }
-    if (recognition) {
-      try {
-        recognition.start();
-      } catch(e) {}
-    }
-    // Explicitly prompt for mic permission if needed
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ audio: true }).catch(err => {
-        console.warn("Mic prompt notice:", err);
-      });
-    }
+    safeStartRecognition();
   }
 
   // ── 5. CALL TOGGLE & LIFECYCLE ───────────────────────────────────────────
@@ -803,6 +896,7 @@
     setStatus('Connecting', '#0ea5e9');
     setCaption('Connecting to Stallion Motors (+234 1 888 0199)...');
     setSphereState('speaking');
+    updateMicIndicator('live', 'Mic Connecting...');
 
     timerInterval = setInterval(() => {
       callSeconds++;
@@ -811,8 +905,16 @@
       document.getElementById('callTimer').innerText = `${m}:${s}`;
     }, 1000);
 
-    // Start hands-free speech recognition
+    // Start hands-free speech recognition immediately
     startContinuousSpeech();
+
+    // Start watchdog timer to keep recognition active throughout call
+    if (recognitionWatchdog) clearInterval(recognitionWatchdog);
+    recognitionWatchdog = setInterval(() => {
+      if (inCall && !isRecognitionActive && !isReplying) {
+        safeStartRecognition();
+      }
+    }, 1200);
 
     // Play greeting immediately with zero-lag from memory
     const defaultGreeting = "Hello! Thank you for calling Stallion Motors Dealership. I am Zola, your virtual concierge. How may I direct your call or assist you with your vehicle today?";
@@ -832,8 +934,9 @@
 
     if (inCall && !isAudioSpeaking && !isReplying) {
       setSphereState('listening');
-      setStatus('Listening', '#10b981');
-      setCaption('Speak your concern naturally (interrupt anytime)...');
+      setStatus('Listening to You', '#10b981');
+      setCaption('Speak naturally, Zola is listening...');
+      updateMicIndicator('live', 'Mic Active • Listening');
     }
   }
 
@@ -846,68 +949,74 @@
     setCaption(`"${utterance}"`);
     setStatus(wasInterruption ? 'Adjusting Concern' : 'Processing', '#f59e0b');
     setSphereState('idle');
+    updateMicIndicator('live', 'Processing Reply...');
 
     console.log(`[USER UTTERANCE ${turnId}] "${utterance}", interrupted: ${wasInterruption}`);
 
-    const data = await apiPost('/simulate/auto-flow', {
-      call_id: activeCallId,
-      utterance: utterance,
-      is_interruption: wasInterruption
-    });
+    try {
+      const data = await apiPost('/simulate/auto-flow', {
+        call_id: activeCallId,
+        utterance: utterance,
+        is_interruption: wasInterruption
+      });
 
-    if (!inCall || turnId !== activeTurnId || abortHunt) {
-      console.log(`[TURN ${turnId} ABORTED OR SUPERSEDED]`);
-      isReplying = false;
-      return;
-    }
-
-    if (data) {
-      // Update Mini Memory Badge
-      if (data.memory) {
-        updateMemoryBadge(data.memory);
-      }
-      await executeTelephonyHunt(data, turnId);
-    } else {
-      console.warn("[API FALLBACK] Using client-side intent routing");
-      const lower = utterance.toLowerCase();
-      let fallbackPreset = "sales_intro";
-      let fallbackMsg = "Certainly! I would be glad to help you with vehicle sales. Let me connect you directly to our Vehicle Sales specialist. Please stay on the line.";
-
-      if (lower.includes("service") || lower.includes("repair") || lower.includes("maintenance")) {
-        fallbackPreset = "service_intro";
-        fallbackMsg = "Understood! Let me forward your call to our Service and Maintenance department right away.";
-      } else if (lower.includes("part") || lower.includes("spare") || lower.includes("tyre")) {
-        fallbackPreset = "parts_intro";
-        fallbackMsg = "Understood! Let me transfer you to our Genuine Spare Parts specialist right away.";
-      } else if (lower.includes("finance") || lower.includes("loan")) {
-        fallbackPreset = "finance_intro";
-        fallbackMsg = "Understood! Let me connect you with our Vehicle Financing desk right away.";
-      } else if (lower.includes("complain") || lower.includes("manager")) {
-        fallbackPreset = "support_intro";
-        fallbackMsg = "Understood! I will escalate your call immediately to our Customer Care Manager.";
+      if (!inCall || turnId !== activeTurnId || abortHunt) {
+        console.log(`[TURN ${turnId} ABORTED OR SUPERSEDED]`);
+        return;
       }
 
-      await speakFishAudio(fallbackMsg, `/audio/${fallbackPreset}.mp3`);
+      if (data) {
+        // Update Mini Memory Badge
+        if (data.memory) {
+          updateMemoryBadge(data.memory);
+        }
+        await executeTelephonyHunt(data, turnId);
+      } else {
+        console.warn("[API FALLBACK] Using client-side intent routing");
+        const lower = utterance.toLowerCase();
+        let fallbackPreset = "sales_intro";
+        let fallbackMsg = "Certainly! I would be glad to help you with vehicle sales. Let me connect you directly to our Vehicle Sales specialist. Please stay on the line.";
 
-      // Sequential hunt retry with Nigerian difficulty audio
-      await new Promise(r => setTimeout(r, 650));
-      if (inCall && turnId === activeTurnId && !abortHunt) {
-        setStatus('Line Difficulty', '#f59e0b');
-        await speakFishAudio("Sorry, some difficulty in the number I dialed, let me forward to another representative.", "/audio/difficulty_retry.mp3");
-      }
-      await new Promise(r => setTimeout(r, 650));
-      if (inCall && turnId === activeTurnId && !abortHunt) {
-        setStatus('Connected', '#10b981');
-        await speakFishAudio("Thank you for holding! I have our senior specialist on the line and I am handing you over now. Have a wonderful day!", "/audio/sales_handover.mp3");
-        setCaption("Handover Complete • Connected to Senior Specialist");
-      }
-    }
+        if (lower.includes("service") || lower.includes("repair") || lower.includes("maintenance")) {
+          fallbackPreset = "service_intro";
+          fallbackMsg = "Understood! Let me forward your call to our Service and Maintenance department right away.";
+        } else if (lower.includes("part") || lower.includes("spare") || lower.includes("tyre")) {
+          fallbackPreset = "parts_intro";
+          fallbackMsg = "Understood! Let me transfer you to our Genuine Spare Parts specialist right away.";
+        } else if (lower.includes("finance") || lower.includes("loan")) {
+          fallbackPreset = "finance_intro";
+          fallbackMsg = "Understood! Let me connect you with our Vehicle Financing desk right away.";
+        } else if (lower.includes("complain") || lower.includes("manager")) {
+          fallbackPreset = "support_intro";
+          fallbackMsg = "Understood! I will escalate your call immediately to our Customer Care Manager.";
+        }
 
-    if (inCall && turnId === activeTurnId && !isAudioSpeaking) {
-      isReplying = false;
-      setSphereState('listening');
-      setStatus('Listening', '#10b981');
-      setCaption('Speak your concern naturally (interrupt anytime)...');
+        await speakFishAudio(fallbackMsg, `/audio/${fallbackPreset}.mp3`);
+
+        // Sequential hunt retry with Nigerian difficulty audio
+        await new Promise(r => setTimeout(r, 650));
+        if (inCall && turnId === activeTurnId && !abortHunt) {
+          setStatus('Line Difficulty', '#f59e0b');
+          await speakFishAudio("Sorry, some difficulty in the number I dialed, let me forward to another representative.", "/audio/difficulty_retry.mp3");
+        }
+        await new Promise(r => setTimeout(r, 650));
+        if (inCall && turnId === activeTurnId && !abortHunt) {
+          setStatus('Connected', '#10b981');
+          await speakFishAudio("Thank you for holding! I have our senior specialist on the line and I am handing you over now. Have a wonderful day!", "/audio/sales_handover.mp3");
+          setCaption("Handover Complete • Connected to Senior Specialist");
+        }
+      }
+    } catch (err) {
+      console.error("[handleUserUtterance error]:", err);
+    } finally {
+      if (inCall && turnId === activeTurnId && !isAudioSpeaking) {
+        isReplying = false;
+        lastProcessedText = "";
+        setSphereState('listening');
+        setStatus('Listening to You', '#10b981');
+        setCaption('Speak naturally, Zola is listening...');
+        updateMicIndicator('live', 'Mic Active • Listening');
+      }
     }
   }
 
@@ -968,9 +1077,19 @@
     inCall = false;
     abortHunt = true;
     isReplying = false;
+    isRecognitionActive = false;
+    lastProcessedText = "";
     clearInterval(timerInterval);
+    if (recognitionWatchdog) {
+      clearInterval(recognitionWatchdog);
+      recognitionWatchdog = null;
+    }
+    clearTimeout(recognitionRestartTimeout);
+    clearTimeout(speechDebounceTimer);
+
     stopAudioImmediately();
     updateUI(false);
+    updateMicIndicator('standby', 'Mic Standby');
     setSphereState('idle');
     setStatus('Call Ended', '#64748b');
     setCaption('Tap the button to start a new call');
