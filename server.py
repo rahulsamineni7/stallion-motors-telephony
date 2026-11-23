@@ -32,15 +32,21 @@ app = FastAPI(
 # Vercel Path Normalization Middleware
 @app.middleware("http")
 async def vercel_path_rewrite_middleware(request: Request, call_next):
-    matched_path = request.headers.get("x-matched-path")
-    if matched_path and matched_path != "/api/index.py":
-        request.scope["path"] = matched_path
-    else:
-        path = request.scope.get("path", "")
-        # If Vercel rewrites to /api/index.py/something or /api/index.py
-        if path.startswith("/api/index.py"):
-            new_path = path[len("/api/index.py"):]
-            request.scope["path"] = new_path if new_path else "/"
+    path = request.scope.get("path", "")
+    # If Vercel rewrites to /api/index.py/something
+    if path.startswith("/api/index.py/"):
+        request.scope["path"] = path[len("/api/index.py"):]
+    elif path == "/api/index.py":
+        # Check if original path is passed in header or query param
+        forwarded = request.headers.get("x-forwarded-uri") or request.headers.get("x-invoke-path")
+        if forwarded and not forwarded.startswith("/api/index.py"):
+            request.scope["path"] = forwarded.split("?")[0]
+        else:
+            query_p = request.query_params.get("__path__")
+            if query_p:
+                request.scope["path"] = query_p
+            else:
+                request.scope["path"] = "/"
     return await call_next(request)
 
 # CORS Middleware
@@ -128,6 +134,16 @@ async def health():
         "status": "healthy",
         "dealership": dealership_config.dealership_name,
         "virtual_number": telephony_config.kros_virtual_number
+    }
+
+@app.api_route("/api/debug-routing", methods=["GET", "POST"])
+@app.api_route("/debug-routing", methods=["GET", "POST"])
+async def debug_routing(request: Request):
+    return {
+        "status": "ok",
+        "scope_path": request.scope.get("path"),
+        "scope_root_path": request.scope.get("root_path"),
+        "url": str(request.url),
     }
 
 if __name__ == "__main__":

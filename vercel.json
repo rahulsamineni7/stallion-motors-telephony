@@ -2,36 +2,28 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/audio_assets.js",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/audio/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/static/(.*)",
-      "destination": "/static/$1"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
       "source": "/simulate/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/simulate/$1"
     },
     {
       "source": "/kros/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/kros/$1"
     },
     {
       "source": "/health",
-      "destination": "/api/index.py"
+      "destination": "/api/health"
     },
     {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
+      "source": "/audio/tts",
+      "destination": "/api/audio/tts"
+    },
+    {
+      "source": "/audio/fish-tts",
+      "destination": "/api/audio/fish-tts"
+    },
+    {
+      "source": "/debug-routing",
+      "destination": "/api/debug-routing"
     }
   ]
 }
