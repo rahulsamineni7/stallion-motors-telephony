@@ -2,28 +2,32 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py?__path__=/api/$1"
+    },
+    {
       "source": "/simulate/(.*)",
-      "destination": "/api/simulate/$1"
+      "destination": "/api/index.py?__path__=/simulate/$1"
     },
     {
       "source": "/kros/(.*)",
-      "destination": "/api/kros/$1"
+      "destination": "/api/index.py?__path__=/kros/$1"
     },
     {
       "source": "/health",
-      "destination": "/api/health"
+      "destination": "/api/index.py?__path__=/health"
     },
     {
       "source": "/audio/tts",
-      "destination": "/api/audio/tts"
+      "destination": "/api/index.py?__path__=/audio/tts"
     },
     {
       "source": "/audio/fish-tts",
-      "destination": "/api/audio/fish-tts"
+      "destination": "/api/index.py?__path__=/audio/fish-tts"
     },
     {
       "source": "/debug-routing",
-      "destination": "/api/debug-routing"
+      "destination": "/api/index.py?__path__=/debug-routing"
     }
   ]
 }

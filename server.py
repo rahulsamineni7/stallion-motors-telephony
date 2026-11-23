@@ -32,19 +32,18 @@ app = FastAPI(
 # Vercel Path Normalization Middleware
 @app.middleware("http")
 async def vercel_path_rewrite_middleware(request: Request, call_next):
-    path = request.scope.get("path", "")
-    # If Vercel rewrites to /api/index.py/something
-    if path.startswith("/api/index.py/"):
-        request.scope["path"] = path[len("/api/index.py"):]
-    elif path == "/api/index.py":
-        # Check if original path is passed in header or query param
-        forwarded = request.headers.get("x-forwarded-uri") or request.headers.get("x-invoke-path")
-        if forwarded and not forwarded.startswith("/api/index.py"):
-            request.scope["path"] = forwarded.split("?")[0]
-        else:
-            query_p = request.query_params.get("__path__")
-            if query_p:
-                request.scope["path"] = query_p
+    query_p = request.query_params.get("__path__")
+    if query_p:
+        request.scope["path"] = query_p
+    else:
+        path = request.scope.get("path", "")
+        # If Vercel rewrites to /api/index.py/something
+        if path.startswith("/api/index.py/"):
+            request.scope["path"] = path[len("/api/index.py"):]
+        elif path == "/api/index.py":
+            forwarded = request.headers.get("x-forwarded-uri") or request.headers.get("x-invoke-path")
+            if forwarded and not forwarded.startswith("/api/index.py"):
+                request.scope["path"] = forwarded.split("?")[0]
             else:
                 request.scope["path"] = "/"
     return await call_next(request)
